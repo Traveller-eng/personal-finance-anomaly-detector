@@ -1,83 +1,101 @@
 # Personal Finance Anomaly Detector (PFAD)
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge&logo=python)
-![Streamlit](https://img.shields.io/badge/Streamlit-Framework-FF4B4B?style=for-the-badge&logo=streamlit)
-![Scikit-Learn](https://img.shields.io/badge/scikit--learn-Machine%20Learning-F7931E?style=for-the-badge&logo=scikitlearn)
+![Streamlit](https://img.shields.io/badge/Streamlit-UI%2FUX-FF4B4B?style=for-the-badge&logo=streamlit)
+![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-Machine%20Learning-F7931E?style=for-the-badge&logo=scikitlearn)
 ![SQLite](https://img.shields.io/badge/SQLite-Persistence-003B57?style=for-the-badge&logo=sqlite)
-![Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen?style=for-the-badge)
+![Coverage](https://img.shields.io/badge/Test%20Coverage-14%20Modules-brightgreen?style=for-the-badge)
 
-A premium, machine-learning-powered financial operations center designed to automatically monitor spending behavior, detect irregular transactions, and provide actionable insights. Moving far beyond traditional budgeting tools that simply categorize expenses, PFAD utilizes unsupervised machine learning (Isolation Forest) paired with deterministic behavioral algorithms to learn your unique spending fingerprint, track recurring overhead, and alert you strictly when significant deviations occur.
+**PFAD** is a state-of-the-art, machine-learning-powered financial operations center. Moving beyond rudimentary budgeting apps, PFAD acts as a proactive financial assistant. It ingests your typical transaction history, learns your unique spending fingerprint, and automatically alerts you of unusual behaviors, hidden subscriptions, or structural deviations in your burn rate.
 
-## 🌟 Key Features
+Built with a stunning, low-noise **Premium Fintech UI** (inspired by platforms like Stripe and Apple Wallet), PFAD surfaces intelligence over data density, allowing you to manage your personal finances with absolute clarity and peace of mind.
 
-*   **Stateful Feedback Loop:** Don't agree with an anomaly? A single click ("Mark as Expected") caches merchant allowances into a local **SQLite database**, suppressing false positives instantly on all future scans without retraining headaches.
-*   **Intelligent Anomaly Detection:** Uses an Unsupervised Isolation Forest model equipped with Model Snapshots. Once your baseline is learned, the ML execution state is cached to disk, meaning lightning-fast reload times across sessions.
-*   **Native Bank Integrations:** Forget manual spreadsheet wrangling. PFAD natively parses transaction formats out-of-the-box from **Mint, Chase, and YNAB**, powered by an autonomous matching router.
-*   **Recurring Overhead Tracking:** Engineered algorithms scan for monthly-periodicity and tight spending-variance to intelligently track hidden subscriptions and predict fixed-cost overheads without manual tagging.
-*   **Actionable Insights & Budgets:** Tell PFAD your monthly constraints. Our Behavioral Insights engine cross-verifies live burn rates to fire off warnings when you surpass projected category budgets ahead of schedule.
-*   **Premium Interactive UI:** Built entirely on Streamlit utilizing custom CSS, glassmorphism elements, dynamic Month-Over-Month delta tables, and Plotly interactive data graphics.
+---
 
-## 🛠️ Technology Architecture
+## 🌟 Core Features for Everyday Life
 
-*   **Frontend / UI:** [Streamlit](https://streamlit.io/) + Custom Behavioral CSS Framework
-*   **State & Persistence:** SQLite3 (Local `pfad.db` for budgets, feedback, & ML Model Blobs)
-*   **Machine Learning:** [Scikit-Learn](https://scikit-learn.org/) (Isolation Forest)
-*   **Data Pipelines:** [Pandas](https://pandas.pydata.org/), NumPy
-*   **Testing Infrastructure:** Exhaustive, 14-module Pytest Suite integrating adversarial stress tests and isolated DB fixtures.
+### 1. Intelligent Anomaly Detection ("Calm Intelligence")
+PFAD doesn't scream at you for buying coffee. Using an **Unsupervised Isolation Forest** algorithm, it maps out a multi-dimensional baseline of your spending. 
+*   **Deviation Mapping:** It scans for combinations of anomalies (e.g., spending 30% more than usual on Transport specifically on a Sunday).
+*   **Feedback Loops:** If the system flags something you expect, a single click ("Mark as Expected") stores the rule in a local **SQLite database**, suppressing future false positives instantly.
 
-## 📂 Project Structure
+### 2. Automatic Bank Integrations
+Stop wrestling with generic CSV mapping. PFAD natively parses exports from the industry's top platforms:
+*   **Mint, Chase, and YNAB** formats are supported natively. Simply feed the tool your export file and the routing architecture parses merchant strings, timestamps, and classifications instantly.
+
+### 3. Financial Health & "What Changed" Index
+Your financial pulse is quantified into a 0-100 core score, rendered in a dynamic semantic radial UI. 
+*   Rather than making you dig through charts, the **What Changed Dashboard** summarizes exactly *why* your score moved (e.g., *"Wait, you've spent ₹852 more on Shopping this week than your 30-day average."*).
+
+### 4. Smart Subscription & Overhead Tracking
+Leveraging complex algorithmic periodicity detection (tracking 30-day payment rhythms alongside low variance coefficients), PFAD actively scouts and categorizes invisible subscriptions that are secretly inflating your monthly overhead, giving you ultimate control over fixed costs.
+
+### 5. Premium "Dark-Mode" Architecture
+Aesthetically tuned to output maximum contrast and minimal noise. Gone are flashy emojis and unreadable charts. You get monochrome Plotly graphs, muted charcoal backgrounds (`#0E1117`), and targeted amber/ruby glow effects focusing your eyes exclusively on what requires attention. 
+
+---
+
+## 🛠️ Technology Stack & Architecture
+
+PFAD is built to be relentlessly fast, infinitely scalable, and thoroughly secure.
+
+*   **Frontend Engine**: [Streamlit](https://streamlit.io/) with deep CSS/HTML injection for glass-metal cards, grid-flexbox architectures, and micro-interactions.
+*   **Compute & Analytics**: [Pandas](https://pandas.pydata.org/) and NumPy for instantaneous rolling window calculations (EWMAs) and sub-second matrix operations.
+*   **Machine Learning State**: [Scikit-Learn](https://scikit-learn.org/) handling the `IsolationForest`, leveraging SQLite-backed Model Snapshots so your custom models persist locally across sessions.
+*   **Persistence Layer**: Native SQLite3 implementation via `src/database.py`, locking your metrics, goals, and logic locally so your data never hits the cloud.
+
+### 📂 Directory Structure
 
 ```text
-├── app.py                      # Core interactive Streamlit dashboard
-├── requirements.txt            # Python dependencies
-├── src/                        # Core backend modules
+├── app.py                      # Core interactive Streamlit dashboard & UI Engine
+├── requirements.txt            # Environment mappings
+├── src/                        # Core backend capabilities
 │   ├── anomaly_detector.py     # Isolation Forest & SQLite Model Snapshots
-│   ├── data_loader.py          # Native Mint, Chase, YNAB, Generic parsing routes
-│   ├── database.py             # SQLite wrapper for rules, constraints, & states
+│   ├── data_loader.py          # Native format parsing (Mint, Chase, YNAB)
+│   ├── database.py             # SQLite wrapper for rules, constraints & budgets
 │   ├── explainer.py            # Natural Language generation for anomalies
-│   ├── feature_engine.py       # ML vector engineering
-│   ├── health_scorer.py        # Composite 0-100 behavior scoring
+│   ├── feature_engine.py       # ML vector & feature extraction
+│   ├── health_scorer.py        # Composite 0-100 logic processing
 │   ├── insights.py             # Live burn-rate tracking & behavioral warnings
-│   ├── preprocessor.py         # Null/Garbage cleansing
+│   ├── preprocessor.py         # Null handling and data sanitization
 │   ├── recurring.py            # Periodicity tracking for subscriptions
 │   └── user_profiler.py        # Baseline behavioral mapping
-└── tests/                      # 14-Module Testing Infrastructure
+└── tests/                      
     ├── test_stress_suite.py    # Master end-to-end regression & stress suite
-    ...
 ```
+
+---
 
 ## 🚀 Getting Started
 
-### 1. Clone the repository
+### 1. Installation
+Clone the repository and spin up an isolated virtual environment:
 ```bash
 git clone https://github.com/Traveller-eng/personal-finance-anomaly-detector.git
 cd personal-finance-anomaly-detector
-```
 
-### 2. Install Dependencies
-It is highly recommended to isolate environments utilizing `venv`:
-```bash
 python -m venv venv
 source venv/Scripts/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Launch the Hub
-The local UI fires securely via standard Streamlit execution:
+### 2. Launching the Hub
+Execute the engine locally. All routing and data manipulation runs strictly on-device out of the box.
 ```bash
 streamlit run app.py
 ```
 
-*Note: If no custom file is provided, an onboard algorithmic generator simulates 1-year of hyper-realistic test transactions completely locally.*
+> **Note:** If you run the app without uploading a file, an onboard autonomous generator will synthesize 1-year of hyper-realistic test transactions for immediate visualization.
 
-## 🔒 Your Data is Private
-All SQL tracking (`pfad.db`), model caching, and execution traces remain **strictly local**. Nothing leaves your machine. Your budget constraints, anomaly dismissals, and financial metrics are scoped securely onto your own file system.
+---
 
-## 🧪 Testing Parity
-PFAD is heavily fortified against nulls, data corruption, and adversarial inputs. The core suite spans 40 explicit assertions mapping across Performance Benchmarks, Data Loader pipelines, and isolated SQLite testing environments.
-```bash
-pytest tests/ -v
-```
+## 🔒 Security & Privacy First
+Financial data should never be arbitrary. 
+PFAD is deliberately built without external API routing. All SQL tracking (`pfad.db`), model caching, budget configurations, and anomaly logs are maintained **strictly locally on your hard drive**.
 
-## 📄 License
-This project is open-source and available under the terms of the **MIT License**. Build, modify, and improve freely.
+## 🧪 Comprehensive Stress Testing
+PFAD runs behind an impenetrable 14-Module Testing Suite (`pytest tests/test_stress_suite.py`). It enforces **40+ adversarial assertions** simulating everything from catastrophic null-data inputs to missing databases, verifying that the engine fails gracefully or handles anomalies smoothly under stress. 
+
+---
+### License
+PFAD is open-source software, built with passion and provided freely under the **MIT License**. Elevate your standard of living today.

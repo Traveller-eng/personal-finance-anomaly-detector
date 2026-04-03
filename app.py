@@ -57,107 +57,94 @@ html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
 }
 
-/* CSS */
 /* Core Structural */
-.stApp { background-color: #0F172A; }
-.css-1d391kg { background-color: #1E293B; } /* Sidebar background approximation */
-.kpi-card {
-    background: #1E293B;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 1.5rem;
-    text-align: center;
+.stApp { background-color: #0E1117; }
+[data-testid="stSidebar"] { background-color: #0E1117; opacity: 0.85; border-right: 1px solid rgba(255,255,255,0.05); }
+
+/* Typography */
+* { letter-spacing: 0.3px; }
+h1, h2, h3, h4, .section-header { font-weight: 500; color: #F3F4F6; }
+.section-header { font-size: 1.1rem; padding-bottom: 0.5rem; margin-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.text-muted { color: #9CA3AF; font-size: 0.9rem; }
+.fintech-score { font-size: 3rem; font-weight: 600; background: linear-gradient(145deg, #F3F4F6, #9CA3AF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* The New Card System */
+.kpi-card, .anomaly-card, .insight-panel, .card {
+    background: linear-gradient(145deg, #18191E, #0E1117);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.04);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 1rem;
 }
-.kpi-card:hover {
+.kpi-card:hover, .anomaly-card:hover, .insight-panel:hover, .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
-/* Anomaly Alert Cards - Hierarchy & Constraints */
-.anomaly-card {
-    background: #1E293B;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 0.8rem;
+/* Hero Score Ring */
+.score-ring {
+    width: 220px;
+    height: 220px;
+    margin: 0;
+    border-radius: 50%;
     display: flex;
     flex-direction: column;
-    max-width: 100%;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.anomaly-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-}
-.anomaly-critical { border-left: 5px solid #EF4444; border-top: 1px solid #334155; border-right: 1px solid #334155; border-bottom: 1px solid #334155; }
-.anomaly-warning { border-left: 5px solid #F59E0B; border-top: 1px solid #334155; border-right: 1px solid #334155; border-bottom: 1px solid #334155; }
-.anomaly-mild { border-left: 5px solid #94A3B8; border-top: 1px solid #334155; border-right: 1px solid #334155; border-bottom: 1px solid #334155; }
-
-.anomaly-header {
-    display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
-    margin-bottom: 0.5rem;
+    position: relative;
+    box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);
+    background: radial-gradient(circle, #0E1117 50%, transparent 60%);
 }
-.anomaly-title { font-weight: 600; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;}
-.anomaly-amount { font-weight: 700; font-size: 1.2rem; color: #F8FAFC; }
-.anomaly-icon { font-size: 1.2rem; }
+.score-ring::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    z-index: -1;
+    background: conic-gradient(#7C9CFF 0% var(--score-pct, 0%), #1F2937 var(--score-pct, 0%));
+}
+.score-caption { font-size: 0.85rem; color: #9CA3AF; margin-top: 5px; }
+
+/* Anomaly Alert Cards */
+.anomaly-critical { border-left: 4px solid #F87171; box-shadow: 0 0 0 1px rgba(248,113,113,0.1), 0 4px 15px rgba(0,0,0,0.4); }
+.anomaly-warning { border-left: 4px solid #FBBF24; box-shadow: 0 0 0 1px rgba(251,191,36,0.1), 0 4px 15px rgba(0,0,0,0.4); }
+.anomaly-mild { border-left: 4px solid #6B7280; box-shadow: 0 0 0 1px rgba(107,114,128,0.1), 0 4px 15px rgba(0,0,0,0.4); }
+
+.anomaly-header { display: flex; align-items: center; justify-content: flex-start; gap: 12px; margin-bottom: 0.8rem; flex-wrap: wrap; }
+.anomaly-title { font-weight: 500; font-size: 1rem; color: #E5E7EB; }
+.anomaly-amount { font-weight: 600; font-size: 1.05rem; color: #E5E7EB; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; }
 
 .anomaly-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 1rem;
-    background: #0F172A;
-    padding: 0.8rem;
-    border-radius: 8px;
-    margin-top: 0.5rem;
+    gap: 12px;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.03);
 }
-.grid-item { display: flex; flex-direction: column; }
-.grid-label { font-size: 0.75rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;}
-.grid-val { font-size: 0.95rem; font-weight: 500; color: #E2E8F0; }
-.deviation-bad { color: #EF4444; font-weight: 600; }
+.grid-item { display: flex; flex-direction: column; gap: 4px; }
+.grid-label { font-size: 0.75rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.3px; }
+.grid-val { font-size: 0.9rem; font-weight: 500; color: #E5E7EB; }
 
 .anomaly-reason {
-    margin-top: 0.8rem;
-    font-size: 0.9rem;
-    color: #CBD5E1;
-    border-top: 1px solid #334155;
-    padding-top: 0.8rem;
-    line-height: 1.5;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: #9CA3AF;
+    line-height: 1.6;
 }
 
 /* What Changed Insights */
-.insight-panel {
-    background: linear-gradient(to right, #1E293B, #0F172A);
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-bottom: 1rem;
-}
-.insight-panel-title {
-    font-weight: 600; font-size: 1.1rem; color: #F8FAFC; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px;
-}
-.insight-listItem { margin-bottom: 0.5rem; display: flex; align-items: start; gap: 8px;}
-.insight-bullet { color: #6366F1; font-weight: bold; }
+.insight-panel-title { font-weight: 500; font-size: 1rem; color: #E5E7EB; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.insight-listItem { margin-bottom: 8px; display: flex; align-items: start; gap: 8px; font-size: 0.85rem; color: #E5E7EB; }
+.insight-bullet { color: #7C9CFF; font-weight: bold; }
 
-/* Existing insight cards */
-.insight-warning { background: rgba(239, 68, 68, 0.1); border-left: 4px solid #EF4444; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; }
-.insight-positive { background: rgba(34, 197, 94, 0.1); border-left: 4px solid #22C55E; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; }
-.insight-suggestion { background: rgba(99, 102, 241, 0.1); border-left: 4px solid #6366F1; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; }
-.insight-prediction { background: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; }
-.insight-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.3rem; }
-.insight-msg { font-size: 0.88rem; color: #CBD5E1; }
-.insight-tip { font-size: 0.82rem; color: #94A3B8; margin-top: 0.3rem; font-style: italic; }
+/* Subtext & Tones */
+.subtle-emphasis { color: #7C9CFF; font-weight: 500; }
+.alert-text { color: #FBBF24; font-weight: 500; }
 
-/* Section headers */
-.section-header {
-    font-size: 1.3rem; font-weight: 600; margin-bottom: 1rem; padding-bottom: 0.5rem;
-    border-bottom: 1px solid #334155; color: #F8FAFC;
-}
-
-/* Sidebar */
-.sidebar-logo { text-align: center; padding: 1rem 0 2rem 0; font-size: 1.4rem; font-weight: 700; color: #6366F1; }
-div[data-testid="stMetricValue"] { font-size: 1.8rem !important; }
+div[data-testid="stMetricValue"] { font-size: 1.4rem !important; font-weight: 600; color: #E5E7EB; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -217,16 +204,15 @@ def render_sidebar() -> tuple:
         )
 
         uploaded_file = None
-        parser_type = "Generic (Default)"
+        parser_type = st.selectbox(
+            "Bank Format",
+            ["Generic (Default)", "Mint", "YNAB", "Chase"],
+        )
         if data_source == "Upload Your CSV":
             uploaded_file = st.file_uploader(
                 "Upload CSV",
                 type=["csv"],
                 help="Required columns: date, amount, category, merchant",
-            )
-            parser_type = st.selectbox(
-                "Bank Format",
-                ["Generic (Default)", "Mint", "YNAB", "Chase"],
             )
             st.caption("Required columns for Generic: `date`, `amount`, `category`, `merchant`")
 
@@ -317,29 +303,29 @@ def plot_theme() -> dict:
     return dict(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#FAFAFA", family="Inter"),
-        xaxis=dict(gridcolor="#2D3361", showgrid=True, zeroline=False),
-        yaxis=dict(gridcolor="#2D3361", showgrid=True, zeroline=False),
+        font=dict(color="#9CA3AF", family="Inter"),
+        xaxis=dict(gridcolor="#1F2937", showgrid=True, zeroline=False),
+        yaxis=dict(gridcolor="#1F2937", showgrid=True, zeroline=False),
         margin=dict(l=10, r=10, t=40, b=10),
     )
 
 
 CATEGORY_COLORS = {
-    "food": "#FF6B6B",
-    "shopping": "#6C63FF",
-    "transport": "#48C9B0",
-    "bills": "#FFA726",
-    "entertainment": "#EC407A",
-    "health": "#66BB6A",
-    "education": "#42A5F5",
-    "rent": "#AB47BC",
-    "uncategorized": "#78909C",
+    "food": "#F87171",
+    "shopping": "#7C9CFF",
+    "transport": "#34D399",
+    "bills": "#FBBF24",
+    "entertainment": "#F472B6",
+    "health": "#A7F3D0",
+    "education": "#93C5FD",
+    "rent": "#C084FC",
+    "uncategorized": "#9CA3AF",
 }
 
 SEVERITY_COLORS = {
-    "critical": "#FF5252",
-    "warning": "#FFA726",
-    "normal": "#66BB6A",
+    "critical": "#F87171",
+    "warning": "#FBBF24",
+    "normal": "#334155",
 }
 
 
@@ -348,33 +334,60 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
     st.markdown("## 📊 Overview")
     st.divider()
 
-    # 1. Hero Section (Health Score)
+    # 1. Hero Section & What Changed Integration
     health_score = scorer.total_score
     grade = scorer._get_grade()
-    color = "#22C55E" if health_score >= 75 else ("#F59E0B" if health_score >= 50 else "#EF4444")
-    status_text = "Stable" if health_score >= 75 else ("Needs Attention" if health_score >= 50 else "At Risk")
-
-    hero_col1, hero_col2 = st.columns([1, 4])
-    with hero_col1:
+    
+    # We bring What Changed directly to the top so there is no empty right-side layout.
+    hero_col_left, hero_col_right = st.columns([1, 1], gap="large")
+    
+    with hero_col_left:
+        st.markdown(f"<h3 style='margin-bottom: 1.5rem;'>Financial Health Index</h3>", unsafe_allow_html=True)
+        # Re-introduce semantic colors:
+        color = "#34D399" if health_score >= 75 else ("#FBBF24" if health_score >= 50 else "#F87171")
+        
         st.markdown(f"""
-        <div style="background: {color}20; border: 2px solid {color}; border-radius: 50%; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-            <span style="font-size: 2.5rem; font-weight: 700; color: {color}; line-height: 1;">{health_score:.0f}</span>
-            <span style="font-size: 0.9rem; font-weight: 600; color: {color}; text-transform: uppercase;">{grade}</span>
+        <div style="
+            width: 220px; height: 220px; margin: 0 auto; 
+            border-radius: 50%; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: conic-gradient({color} {health_score}%, #1F2937 {health_score}%);
+            padding: 4px; box-shadow: inset 0 4px 15px rgba(0,0,0,0.5);
+        ">
+            <div style="background: #0E1117; width: 100%; height: 100%; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);">
+                <div class="fintech-score" style="background: linear-gradient(145deg, #F3F4F6, {color}); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{health_score:.0f}</div>
+                <div class="score-caption" style="margin-top: 2px;">Out of 100 ({grade})</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-    with hero_col2:
-        st.markdown(f"<h3 style='margin-bottom: 0.2rem;'>Financial Health: {status_text}</h3>", unsafe_allow_html=True)
-        # Fetch top insight string for quick context
+        
         top_insight = insights_gen.get_top_insights(1)
         if top_insight:
-            st.markdown(f"<p style='color: #94A3B8; font-size: 1.1rem;'>{top_insight[0]['title']} — {top_insight[0]['suggestion']}</p>", unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align: center; margin-top: 15px;"><span class="subtle-emphasis">{top_insight[0]["title"]}</span><br><span style="color: #E5E7EB; font-size: 0.95rem;">{top_insight[0]["suggestion"]}</span></div>', unsafe_allow_html=True)
         else:
-            st.markdown("<p style='color: #94A3B8; font-size: 1.1rem;'>Your spending patterns are stable and within normal baseline.</p>", unsafe_allow_html=True)
+            st.markdown('<div style="text-align: center; margin-top: 15px; color: #9CA3AF; font-size: 0.95rem;">Spending patterns are stable</div>', unsafe_allow_html=True)
+            
+    with hero_col_right:
+        st.markdown(f"<h3 style='margin-bottom: 1.5rem;'>What Changed This Week</h3>", unsafe_allow_html=True)
+        insights_list = insights_gen.get_insights()
+        if insights_list:
+            st.markdown('<div class="insight-panel" style="margin-bottom: 0;">', unsafe_allow_html=True)
+            for ins in insights_list[:4]:
+                st.markdown(f'''<div class="insight-listItem">
+        <span class="insight-bullet">→</span> 
+        <span style="color: #E5E7EB; font-size: 0.95rem; line-height: 1.5;">
+            <strong>{ins["title"]}</strong><br>
+            <span class="text-muted">{ins["message"]}</span>
+        </span>
+    </div>''', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.info("No significant behavioral changes detected this period.")
 
     # 2. Priority Section (Anomaly Alerts) - Dominant if exist
     anomalies = df[df["is_anomaly"] == 1]
     if len(anomalies) > 0:
-        st.markdown('<p class="section-header" style="margin-top: 2.5rem;">🔴 Anomalies & Alerts</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-header" style="margin-top: 3.5rem;">Requires Attention</p>', unsafe_allow_html=True)
         recent_anomalies = anomalies.sort_values(by=["anomaly_score", "date"], ascending=[False, False]).head(5)
         
         cards_html = []
@@ -382,13 +395,13 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
             sev = row.get("anomaly_severity", "warning").lower()
             if sev == "critical":
                 sev_class = "anomaly-critical"
-                icon = "🚨 (Critical Deviation)"
+                icon = "Requires Attention"
             elif sev == "warning":
                 sev_class = "anomaly-warning"
-                icon = "⚠️ (Warning)"
+                icon = "Unusual Activity"
             else:
                 sev_class = "anomaly-mild"
-                icon = "ℹ️ (Mild)"
+                icon = "Notable Change"
             
             struct_exp = row.get("structured_explanation", {})
             if isinstance(struct_exp, dict) and struct_exp:
@@ -407,42 +420,26 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
 
             cards_html.append(f"""<div class="anomaly-card {sev_class}">
     <div class="anomaly-header">
-        <div class="anomaly-title" style="color: #F8FAFC;">{icon} &nbsp; {cat} at {merch}</div>
+        <div class="anomaly-title"><span style="color:#9CA3AF; font-size:0.85rem; font-weight: 500;">{icon} &nbsp;·&nbsp;</span> {cat} at {merch}</div>
         <div class="anomaly-amount">{amount_fmt}</div>
     </div>
-    <div style="color: #94A3B8; font-size: 0.85rem;">{date_str}</div>
+    <div style="color: #9CA3AF; font-size: 0.8rem; margin-top:-8px; margin-bottom: 8px;">{date_str}</div>
     <div class="anomaly-grid">
         <div class="grid-item">
-            <span class="grid-label">Typical Behavior</span>
+            <span class="grid-label">Typical</span>
             <span class="grid-val">{typical}</span>
         </div>
         <div class="grid-item">
-            <span class="grid-label">Deviation</span>
-            <span class="grid-val deviation-bad">{deviation}</span>
+            <span class="grid-label">Observed</span>
+            <span class="grid-val alert-text">{deviation}</span>
         </div>
     </div>
-    <div class="anomaly-reason">
+    <div class="anomaly-reason" style="margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid rgba(255,255,255,0.05);">
         <strong>Reason:</strong> {reason}
     </div>
 </div>""")
 
         st.markdown("".join(cards_html), unsafe_allow_html=True)
-
-    # 3. What Changed (Insight Panel)
-    st.markdown('<p class="section-header" style="margin-top: 2.5rem;">⚡ What Changed Recently</p>', unsafe_allow_html=True)
-    insights_list = insights_gen.get_insights()
-    if insights_list:
-        st.markdown('<div class="insight-panel">', unsafe_allow_html=True)
-        for ins in insights_list[:4]:  # Top 4 insights
-            st.markdown(f'''<div class="insight-listItem">
-    <span class="insight-bullet">→</span> 
-    <span style="color: #E2E8F0; font-size: 1rem;">
-        <strong>{ins["title"]}:</strong> {ins["message"]}
-    </span>
-</div>''', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.info("No significant behavioral changes detected.")
 
     # 4 & 5. Trends and Breakdown (Side by Side)
     col_trends, col_donut = st.columns([1.5, 1])
@@ -471,17 +468,17 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
         fig_trend = go.Figure()
         fig_trend.add_trace(go.Bar(
             x=daily_spend["date"], y=daily_spend["amount"], name="Actual Spend",
-            marker_color="rgba(99, 102, 241, 0.25)",
+            marker_color="rgba(51, 65, 85, 0.4)",
             hovertemplate=f"<b>%{{x}}</b><br>{currency}%{{y:,.0f}}<extra></extra>",
         ))
         fig_trend.add_trace(go.Scatter(
             x=daily_spend["date"], y=daily_spend["ewma"], name="Smoothed Trend",
-            line=dict(color="#6366F1", width=3), mode="lines",
+            line=dict(color="#7C9CFF", width=3), mode="lines",
             hovertemplate=f"<b>%{{x}}</b><br>Trend: {currency}%{{y:,.0f}}<extra></extra>",
         ))
         fig_trend.add_trace(go.Scatter(
             x=forecast_df["date"], y=forecast_df["forecast"], name="7-Day Forecast",
-            line=dict(color="#F59E0B", width=2, dash="dot"), mode="lines",
+            line=dict(color="#FBBF24", width=2, dash="dot"), mode="lines",
             hovertemplate=f"<b>%{{x}}</b><br>Forecast: {currency}%{{y:,.0f}}<extra></extra>",
         ))
         
@@ -519,7 +516,7 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
 # ─── PAGE 2: Anomaly Explorer ─────────────────────────────────────────────────
 def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str):
     st.markdown("## 🔴 Anomaly Explorer")
-    st.caption("Drill into every flagged transaction and understand exactly why it was detected.")
+    st.caption("Investigate unusual patterns and spending deviations detected by the system.")
     st.divider()
 
     anomalies = df[df["is_anomaly"] == 1].copy()
@@ -534,10 +531,10 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str):
         st.metric("Total Anomalies", len(anomalies))
     with col2:
         critical = len(anomalies[anomalies["anomaly_severity"] == "critical"])
-        st.metric("Critical", critical, delta="Needs attention", delta_color="inverse")
+        st.metric("Requires Attention", critical, delta="Urgent", delta_color="inverse")
     with col3:
         warning = len(anomalies[anomalies["anomaly_severity"] == "warning"])
-        st.metric("Warnings", warning)
+        st.metric("Unusual Activity", warning)
     with col4:
         st.metric("Total Anomalous Spend", fmt(anomalies["amount"].sum(), currency))
 
@@ -558,13 +555,13 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str):
             x=normal["anomaly_score"],
             y=normal["amount"],
             mode="markers",
-            name="Normal",
-            marker=dict(color="rgba(102,187,106,0.3)", size=5),
+            name="Typical",
+            marker=dict(color="#1F2937", size=5),
             hoverinfo="skip",
         ))
 
         # Anomalies — color by severity
-        for severity, color in [("critical", "#FF5252"), ("warning", "#FFA726")]:
+        for severity, color in [("critical", "#F87171"), ("warning", "#FBBF24")]:
             sev_df = anomalies[anomalies["anomaly_severity"] == severity]
             if len(sev_df) > 0:
                 fig_scatter.add_trace(go.Scatter(
@@ -585,8 +582,9 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str):
 
         fig_scatter.add_vline(
             x=df["anomaly_score"].quantile(0.05),
-            line_dash="dash", line_color="#6C63FF",
+            line_dash="dash", line_color="#334155",
             annotation_text="Anomaly threshold", annotation_font_size=11,
+            annotation_font_color="#9CA3AF"
         )
         fig_scatter.update_layout(title="Transaction Anomaly Map", **plot_theme())
         st.plotly_chart(fig_scatter, use_container_width=True)
