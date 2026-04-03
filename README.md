@@ -6,7 +6,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-Persistence-003B57?style=for-the-badge&logo=sqlite)
 ![Coverage](https://img.shields.io/badge/Coverage-94%25%20(pytest--cov)-brightgreen?style=for-the-badge)
 
-**PFAD** is a behavior-aware financial intelligence system — a machine-learning-powered financial operations center. Moving beyond rudimentary budgeting apps, PFAD acts as an autonomous, proactive financial assistant It ingests your typical transaction history, learns your unique spending fingerprint, extracts causal drivers for unusual behavior, and creates definitive action plans to stabilize your Financial Health.
+**PFAD** is a behavior-aware financial intelligence system — a machine-learning-powered financial operations center. Moving beyond rudimentary budgeting apps, PFAD acts as an autonomous, proactive financial assistant. It ingests your typical transaction history, learns your unique spending fingerprint, extracts causal drivers for unusual behavior, and creates definitive action plans to stabilize your Financial Health.
 
 Built with a stunning, low-noise **Premium Fintech UI** (inspired by platforms like Stripe and Apple Wallet), PFAD surfaces intelligence over data density, allowing you to manage your personal finances with absolute clarity and peace of mind.
 
@@ -24,7 +24,8 @@ PFAD doesn't just display charts — it acts as a decision engine. Our new Intel
 
 
 ### 2. Dual-Signal Anomaly Detection & Causal Deconstruction
-PFAD refuses to be a black box. It leverages an **Ensemble Reasoning Engine**—combining an Isolation Forest with rolling Z-score statistical bounds (30-day deviation)—to detect both multi-dimensional and volume-based outliers. It assigns a High/Medium confidence rating to every flag, and deconstructs the anomaly into 3 components:
+PFAD refuses to be a black box. It leverages an **Ensemble Reasoning Engine**—combining an Isolation Forest with rolling Z-score statistical bounds (30-day deviation)—to detect both multi-dimensional and volume-based outliers. It assigns a High/Medium confidence rating to every flag, and deconstructs the anomaly into 4 components:
+*   **Confidence Rating:** `High (Isolation Forest + Statistical agreement)`
 *   **What Happened:** The actual impact of the transaction.
 *   **Baseline & Deviation:** Proportional variance against rolling 30-day benchmarks.
 *   **Cause:** The multi-factor driver (e.g. *Weekend Spike + New Vendor*).
@@ -32,7 +33,7 @@ PFAD refuses to be a black box. It leverages an **Ensemble Reasoning Engine**—
 ### 3. Native Ground Truth Evaluation Engine
 How do you know the ML system works? We built an onboard performance engine that evaluates itself. By injecting synthetic anomalies into the mock dataset with true labels, PFAD calculates rigorous ML metrics (**Precision**, **Recall**, and **F1-Score**) in real-time, proving its accuracy directly in the diagnostic panel. (When using real-world data without ground truth, it gracefully falls back to generating Model Confidence heuristics).
 
-### 4. Automatic Bank Integrations
+### 4. Native Bank Export Parsing
 Stop wrestling with generic CSV mapping. PFAD natively parses exports from the industry's top platforms:
 *   **Mint, Chase, and YNAB** formats are supported natively. Feed the tool your export file and the routing architecture parses merchant strings, timestamps, and classifications instantly.
 
