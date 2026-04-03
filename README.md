@@ -23,8 +23,8 @@ PFAD doesn't just display charts — it acts as a decision engine. Our new Intel
 *   **Risk if Ignored:** `If this trend continues, you may exceed your monthly budget by ₹4,200.`
 
 
-### 2. Deep Causal Explanations 
-PFAD refuses to be a black box. Using an Isolation Forest model, PFAD identifies and explains unusual spending patterns. It deconstructs every flagged anomaly into 3 components:
+### 2. Dual-Signal Anomaly Detection & Causal Deconstruction
+PFAD refuses to be a black box. It leverages an **Ensemble Reasoning Engine**—combining an Isolation Forest with rolling Z-score statistical bounds (30-day deviation)—to detect both multi-dimensional and volume-based outliers. It assigns a High/Medium confidence rating to every flag, and deconstructs the anomaly into 3 components:
 *   **What Happened:** The actual impact of the transaction.
 *   **Baseline & Deviation:** Proportional variance against rolling 30-day benchmarks.
 *   **Cause:** The multi-factor driver (e.g. *Weekend Spike + New Vendor*).
@@ -53,7 +53,7 @@ This enables proactive financial control rather than reactive tracking.
 
 ## 🛠️ Technology Stack & Architecture
 
-PFAD is built to be relentlessly fast, infinitely scalable, and thoroughly secure.
+PFAD is optimized for local execution—meaning it is fast, private, and deeply secure by design.
 
 *   **Frontend Engine**: [Streamlit](https://streamlit.io/) with deep CSS/HTML injection for glass-metal cards, grid-flexbox architectures, dynamic flex margins, and responsive Plotly integrations.
 *   **Compute & Analytics**: [Pandas](https://pandas.pydata.org/) and NumPy for instantaneous rolling window calculations (EWMAs) and sub-second matrix operations.
@@ -104,6 +104,8 @@ PFAD uses local authentication for security.
 
 Example configuration is provided in `config_example.yaml`
 
+> **Guest Mode**: PFAD supports a fully sandboxed "Quick Evaluation" Guest Mode. Click "Continue as Guest" at the login portal to bypass authentication and safely explore the engine in a Read-Only state where structural database saves are automatically disabled.
+
 ### 3. Launching the Hub
 Execute the engine locally. All routing and data manipulation runs strictly on-device out of the box.
 ```bash
@@ -129,8 +131,8 @@ streamlit run app.py
 Financial data should never be arbitrary. 
 PFAD is deliberately built without external API routing. All SQL tracking (`pfad.db`), model caching, budget configurations, and anomaly logs are maintained **strictly locally on your hard drive**.
 
-## 🧪 Comprehensive Stress Testing
-PFAD runs behind an impenetrable 14-Module Testing Suite (`pytest tests/`). It enforces adversarial assertions simulating everything from catastrophic null-data inputs to missing databases, verifying that the Action Layer constructs safely and anomalous pipelines fail gracefully under extreme stress. 
+## 🧪 Rigorous Testing
+PFAD maintains high code coverage backed by a robust testing suite (`pytest tests/`). It enforces assertions simulating unexpected data inputs, verifying that the Action Layer constructs safely and anomalous pipelines fail gracefully under edge cases. 
 
 ---
 ### License
