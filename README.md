@@ -24,7 +24,7 @@ PFAD doesn't just display charts — it acts as a decision engine. Our new Intel
 
 
 ### 2. Dual-Signal Anomaly Detection & Causal Deconstruction
-PFAD refuses to be a black box. It leverages an **Ensemble Reasoning Engine**—combining an Isolation Forest with rolling Z-score statistical bounds (30-day deviation)—to detect both multi-dimensional and volume-based outliers. It assigns a High/Medium confidence rating to every flag, and deconstructs the anomaly into 4 components:
+PFAD refuses to be a black box. It leverages an **Ensemble Reasoning Engine**—combining an Isolation Forest with rolling Z-score statistical bounds (30-day deviation)—to detect both multi-dimensional and volume-based outliers. Using custom feature attribution logic mapped by our core `explainer.py` engine, it assigns a High/Medium confidence rating to every flag, and deconstructs the anomaly into 4 components:
 *   **Confidence Rating:** `High (Isolation Forest + Statistical agreement)`
 *   **What Happened:** The actual impact of the transaction.
 *   **Baseline & Deviation:** Proportional variance against rolling 30-day benchmarks.
@@ -103,7 +103,10 @@ PFAD uses local authentication for security.
 2. Add your credentials using hashed passwords
 3. Restart the app
 
-Example configuration is provided in `config_example.yaml`
+Example configuration is provided in `config_example.yaml`. You can quickly generate your own secure credentials natively by executing our onboard hashing utility:
+```bash
+python src/utils/hash_gen.py
+```
 
 > **Guest Mode**: PFAD supports a fully sandboxed "Quick Evaluation" Guest Mode. Click "Continue as Guest" at the login portal to bypass authentication and safely explore the engine in a Read-Only state where structural database saves are automatically disabled.
 
@@ -117,6 +120,12 @@ streamlit run app.py
 
 ---
 
+## 🗺️ Feature Roadmap
+
+- **Multi-currency support**: Expand architectural boundaries via native Exchange Rate API integrations to automatically normalize multi-national bank exports.
+
+---
+
 ## Limitations
 
 - Synthetic data may not fully represent real-world financial behavior
@@ -124,7 +133,6 @@ streamlit run app.py
 - Z-score assumes normal distribution, which may not hold across all spending patterns
 - Impact projections are heuristic and not predictive models
 - No real-time bank API integration (CSV-based ingestion only)
-- Single-currency assumption (no FX handling)
 
 ---
 
