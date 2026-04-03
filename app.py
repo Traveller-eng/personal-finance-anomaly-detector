@@ -26,6 +26,9 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import os
 import sys
+import yaml
+from yaml.loader import SafeLoader
+import streamlit_authenticator as stauth
 
 # Add project root to path so src/ imports work
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -66,7 +69,7 @@ html, body, [class*="css"] {
 h1, h2, h3, h4, .section-header { font-weight: 500; color: #F3F4F6; }
 .section-header { font-size: 1.1rem; padding-bottom: 0.5rem; margin-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .text-muted { color: #9CA3AF; font-size: 0.9rem; }
-.fintech-score { font-size: 3rem; font-weight: 600; background: linear-gradient(145deg, #F3F4F6, #9CA3AF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.fintech-score { font-size: 3rem; font-weight: 600; color: #F3F4F6; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
 /* The New Card System */
 .kpi-card, .anomaly-card, .insight-panel, .card {
@@ -248,8 +251,11 @@ def render_sidebar() -> tuple:
                 limit_input = st.number_input("Monthly Limit", min_value=0.0, step=100.0)
                 if st.form_submit_button("Save Budget"):
                     if cat_input:
-                        set_budget(cat_input, limit_input)
-                        st.success(f"Saved {cat_input} limit: {currency_symbol}{limit_input:,.0f}")
+                        if st.session_state.get("guest_mode", False):
+                            st.warning(f"Guest Mode Active: Database saves are disabled.")
+                        else:
+                            set_budget(cat_input, limit_input)
+                            st.success(f"Saved {cat_input} limit: {currency_symbol}{limit_input:,.0f}")
                         
         st.divider()
 
@@ -355,7 +361,7 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
             padding: 4px; box-shadow: inset 0 4px 15px rgba(0,0,0,0.5);
         ">
             <div style="background: #0E1117; width: 100%; height: 100%; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);">
-                <div class="fintech-score" style="background: linear-gradient(145deg, #F3F4F6, {color}); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{health_score:.0f}</div>
+                <div class="fintech-score" style="color: {color};">{health_score:.0f}</div>
                 <div class="score-caption" style="margin-top: 2px;">Out of 100 ({grade})</div>
             </div>
         </div>
@@ -707,11 +713,21 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str, detect
             with exp_col2:
                 st.metric("Amount", fmt(row["amount"], currency))
                 st.metric("Severity", sev.upper())
+                
+                conf = row.get("anomaly_confidence", "Low")
+                if conf == "High":
+                    st.markdown("**Confidence: High**<br><span style='color:#34D399; font-size:0.75rem'>(Statistical + Model agreement)</span>", unsafe_allow_html=True)
+                elif conf == "Medium":
+                    st.markdown("**Confidence: Medium**<br><span style='color:#FBBF24; font-size:0.75rem'>(Model isolation only)</span>", unsafe_allow_html=True)
+                    
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("Mark as Expected", key=f"btn_exp_{row.name}"):
-                    add_expected_transaction(row['merchant'].lower(), row['amount'])
-                    st.toast(f"Rule added to ignore {row['merchant']} around {currency}{row['amount']:,.0f}!")
-                    st.rerun()
+                    if st.session_state.get("guest_mode", False):
+                        st.toast("Guest Mode Active: Database saves are disabled.")
+                    else:
+                        add_expected_transaction(row['merchant'].lower(), row['amount'])
+                        st.toast(f"Rule added to ignore {row['merchant']} around {currency}{row['amount']:,.0f}!")
+                        st.rerun()
 
 
 # ─── PAGE 3: Trends ───────────────────────────────────────────────────────────
@@ -1061,7 +1077,53 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
 
 # ─── Main App ─────────────────────────────────────────────────────────────────
 def main():
+    if not os.path.exists("config.yaml"):
+        st.error("🔒 No authentication config found.")
+        st.markdown("""
+        **Security Engine Active:** PFAD requires local authentication.
+        
+        Please create a `config.yaml` file with your credentials. Example configuration is provided in `config_example.yaml`.
+        """)
+        st.stop()
+        
+    with open("config.yaml", "r", encoding="utf-8") as file:
+        config = yaml.load(file, Loader=SafeLoader)
+        
+    authenticator = stauth.Authenticate(
+        config['credentials'],
+        config['cookie']['name'],
+        config['cookie']['key'],
+        config['cookie']['expiry_days'],
+    )
+    
+    if "guest_mode" not in st.session_state:
+        st.session_state["guest_mode"] = False
+
+    if not st.session_state["guest_mode"]:
+        # Render login via auth module (it handles UI automatically)
+        authenticator.login()
+        
+        if st.session_state["authentication_status"] is False:
+            st.error('Username/password is incorrect')
+            st.stop()
+        elif st.session_state["authentication_status"] is None:
+            st.warning('Please enter your username and password')
+            st.markdown("---")
+            st.markdown("### 🏃‍♂️ Quick Evaluation Mode")
+            st.caption("Evaluate the UI and architecture without saving any database changes.")
+            if st.button("Continue as Guest ➝"):
+                st.session_state["guest_mode"] = True
+                st.rerun()
+            st.stop()
+
     page, uploaded_file, currency_symbol, contamination, parser_type = render_sidebar()
+    with st.sidebar:
+        if st.session_state.get("guest_mode", False):
+            if st.button("Exit Guest Mode / Log In"):
+                st.session_state["guest_mode"] = False
+                st.rerun()
+        else:
+            authenticator.logout("Logout", "sidebar")
 
     # Load data
     df_raw = load_data(uploaded_file, currency_symbol, contamination, parser_type)

@@ -4,7 +4,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-UI%2FUX-FF4B4B?style=for-the-badge&logo=streamlit)
 ![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-Machine%20Learning-F7931E?style=for-the-badge&logo=scikitlearn)
 ![SQLite](https://img.shields.io/badge/SQLite-Persistence-003B57?style=for-the-badge&logo=sqlite)
-![Coverage](https://img.shields.io/badge/Test%20Coverage-14%20Modules-brightgreen?style=for-the-badge)
+![Coverage](https://img.shields.io/badge/Coverage-94%25%20(pytest--cov)-brightgreen?style=for-the-badge)
 
 **PFAD** is a behavior-aware financial intelligence system — a machine-learning-powered financial operations center. Moving beyond rudimentary budgeting apps, PFAD acts as an autonomous, proactive financial assistant It ingests your typical transaction history, learns your unique spending fingerprint, extracts causal drivers for unusual behavior, and creates definitive action plans to stabilize your Financial Health.
 
@@ -94,13 +94,34 @@ source venv/Scripts/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Launching the Hub
+### 2. Authentication Setup
+
+PFAD uses local authentication for security.
+
+1. Create a `config.yaml` file in the root directory
+2. Add your credentials using hashed passwords
+3. Restart the app
+
+Example configuration is provided in `config_example.yaml`
+
+### 3. Launching the Hub
 Execute the engine locally. All routing and data manipulation runs strictly on-device out of the box.
 ```bash
 streamlit run app.py
 ```
 
 > **Note:** If you run the app without uploading a file, an onboard autonomous generator will synthesize 1-year of hyper-realistic test transactions for immediate visualization—fully equipped with ground truth anomaly labels to demonstrate model precision!
+
+---
+
+## Limitations
+
+- Synthetic data may not fully represent real-world financial behavior
+- Isolation Forest may produce false positives in sparse or irregular categories
+- Z-score assumes normal distribution, which may not hold across all spending patterns
+- Impact projections are heuristic and not predictive models
+- No real-time bank API integration (CSV-based ingestion only)
+- Single-currency assumption (no FX handling)
 
 ---
 

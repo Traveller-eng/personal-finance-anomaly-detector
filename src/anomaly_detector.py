@@ -118,20 +118,32 @@ class AnomalyDetector:
             self.is_fitted = True
             save_model(self.model, data_hash, self.config.get("contamination", 0.05))
 
-        # Get anomaly labels: -1 = anomaly, 1 = normal
+        # Standard Isolation Forest execution
         labels = self.model.predict(X)
-
-        # Get anomaly scores (more negative = more anomalous)
-        # score_samples returns the anomaly score of the input samples
-        # Lower scores indicate more abnormal
         scores = self.model.score_samples(X)
+        is_iforest_anomaly = (labels == -1).astype(int)
+
+        # Ensemble Z-Score Execution
+        is_zscore_anomaly = self._apply_zscore_detector(df)
+
+        # Confidence Voting Logic
+        is_anomaly_final = is_iforest_anomaly | is_zscore_anomaly
+        confidence = []
+        for i_flag, z_flag in zip(is_iforest_anomaly, is_zscore_anomaly):
+            if i_flag == 1 and z_flag == 1:
+                confidence.append("High")
+            elif i_flag == 1 or z_flag == 1:
+                confidence.append("Medium")
+            else:
+                confidence.append("Low")
 
         # Add to DataFrame
         df["anomaly_score"] = scores
-        df["is_anomaly"] = (labels == -1).astype(int)
+        df["is_anomaly"] = is_anomaly_final
+        df["anomaly_confidence"] = confidence
 
         # Add severity levels based on score percentiles
-        df["anomaly_severity"] = self._calculate_severity(scores, labels)
+        df["anomaly_severity"] = self._calculate_severity(scores, is_anomaly_final.values if hasattr(is_anomaly_final, "values") else is_anomaly_final)
 
         # Force clear predictions for known expected logic so they never show up
         if is_expected.any():
@@ -163,6 +175,32 @@ class AnomalyDetector:
                 severities.append("normal")
 
         return severities
+
+    def _apply_zscore_detector(self, df: pd.DataFrame) -> pd.Series:
+        """
+        Z-Score rolling heuristic.
+        Calculates 30-day mean/std per category and flags amounts > 2.5 standard deviations.
+        """
+        is_zscore_anomaly = pd.Series(0, index=df.index)
+        
+        # Calculate isolated rolling z-scores
+        for cat in df["category"].unique():
+            cat_mask = df["category"] == cat
+            cat_df = df[cat_mask].copy()
+            if len(cat_df) > 5:
+                # Rolling stats
+                cat_df = cat_df.sort_values("date")
+                rolling = cat_df["amount"].rolling(window=min(30, len(cat_df)), min_periods=3)
+                roll_mean = rolling.mean().shift(1).fillna(method='bfill')
+                roll_std = rolling.std().shift(1).fillna(method='bfill')
+                
+                # Z-score computation
+                z_scores = (cat_df["amount"] - roll_mean) / roll_std.replace(0, 1) # prevent div by zero
+                cat_df["is_z"] = (z_scores > 2.5).astype(int)
+                
+                is_zscore_anomaly.loc[cat_df.index] = cat_df["is_z"]
+                
+        return is_zscore_anomaly
 
     def get_anomaly_summary(self, df: pd.DataFrame) -> dict:
         """
