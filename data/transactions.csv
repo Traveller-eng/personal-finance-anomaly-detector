@@ -1,4 +1,4 @@
-date,amount,category,merchant,is_injected_anomaly
+date,amount,category,merchant,is_actual_anomaly
 2025-04-01,409.61,food,Swiggy,False
 2025-04-01,141.7,transport,Ola,False
 2025-04-01,15323.84,rent,Landlord UPI,False

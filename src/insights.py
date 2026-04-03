@@ -3,23 +3,13 @@ insights.py — Actionable Financial Recommendations
 =====================================================
 PURPOSE:
     Transforms raw data analysis into ACTIONABLE ADVICE. This is what
-    makes PFAD a "financial assistant" rather than just a "data viewer."
+    makes PFAD a "financial decision engine" rather than just an "analytics tool."
 
     The system doesn't just show charts — it tells the user:
     - What to fix
-    - How to fix it
-    - What happens if they don't
-
-WHY ACTIONABLE INSIGHTS MATTER:
-    Most finance apps show data. Very few tell you what to DO about it.
-    This module bridges that gap using rule-based logic on top of the
-    user profile and anomaly detection results.
-
-    Each insight has:
-    - Type: (warning, positive, suggestion, prediction)
-    - Priority: (high, medium, low)
-    - Message: natural language recommendation
-    - Data: supporting numbers
+    - When to fix it (Time constraint)
+    - How to fix it (Strategy hint)
+    - What happens if they do (Impact projection)
 """
 
 import pandas as pd
@@ -34,8 +24,6 @@ import calendar
 class InsightGenerator:
     """
     Generates actionable financial insights from transaction data and user profile.
-
-
     """
 
     def __init__(
@@ -86,13 +74,26 @@ class InsightGenerator:
             if limit > 0:
                 burn_pct = (spent / limit) * 100
                 if burn_pct >= 75:
+                    is_critical = burn_pct > 100
+                    priority = "high" if is_critical else "medium"
+                    
                     self.insights.append({
                         "type": "warning",
-                        "priority": "high" if burn_pct > 100 else "medium",
+                        "priority": priority,
                         "category": cat.title(),
                         "title": f"Budget Alert: {cat.title()}",
-                        "message": f"You've spent {burn_pct:.0f}% of your {self.currency}{limit:,.0f} {cat.title()} budget with {days_left} days left.",
-                        "suggestion": "Review recent expenses to prevent overspending this month."
+                        "message": (
+                            f"**{cat.title()} spending reached {burn_pct:.0f}% of budget**\n"
+                            f"Driven by:\n"
+                            f"• {self.currency}{spent:,.0f} total spent vs {self.currency}{limit:,.0f} limit\n"
+                            f"• Only {days_left} days remaining in cycle\n"
+                        ),
+                        "action_plan": {
+                            "target": f"Hard lock {cat.title()} spending",
+                            "timeframe": f"over the next {days_left} days",
+                            "strategy": "by utilizing pre-purchased items or completely avoiding this category",
+                            "impact": "Expected Impact: +5 to +10 score preservation"
+                        }
                     })
 
     def _check_recurring(self):
@@ -104,17 +105,22 @@ class InsightGenerator:
                 "priority": "high",
                 "category": "overall",
                 "title": "Recurring Overhead Detected",
-                "message": f"You have {recurring_data['count']} recurring charges totaling {self.currency}{recurring_data['total_monthly']:,.0f}/month you may have forgotten.",
-                "suggestion": "Review your subscriptions to lower your fixed monthly costs."
+                "message": (
+                    f"**{recurring_data['count']} active recurring charges identified**\n"
+                    f"Driven by:\n"
+                    f"• {self.currency}{recurring_data['total_monthly']:,.0f} fixed monthly drain\n"
+                    f"• Automatic silent deductions\n"
+                ),
+                "action_plan": {
+                    "target": "Audit subscriptions and cancel 1 unused service",
+                    "timeframe": "this weekend",
+                    "strategy": "by reviewing payment auto-mandates in your banking app",
+                    "impact": "Expected Impact: +2 to +4 score improvement and immediate cashflow boost"
+                }
             })
 
     def _check_category_overspending(self):
-        """
-        Check if any category is significantly over its baseline this week/month.
-
-        Rule:
-            If current week's spend in a category > baseline_avg + 1.5 × std → warning
-        """
+        """Check if any category is significantly over its baseline this week/month."""
         if len(self.df) == 0:
             return
 
@@ -131,6 +137,7 @@ class InsightGenerator:
 
             if baseline_weekly > 0 and weekly_spend > baseline_weekly * 1.5:
                 overspend_pct = ((weekly_spend / baseline_weekly) - 1) * 100
+                deviation_amount = weekly_spend - baseline_weekly
 
                 self.insights.append({
                     "type": "warning",
@@ -138,69 +145,58 @@ class InsightGenerator:
                     "category": category,
                     "title": f"Overspending on {category.title()}",
                     "message": (
-                        f"You spent {self.currency}{weekly_spend:,.0f} on {category} "
-                        f"this week — that's **{overspend_pct:.0f}% above** your weekly "
-                        f"baseline of {self.currency}{baseline_weekly:,.0f}."
+                        f"**{category.title()} spending increased by {self.currency}{deviation_amount:,.0f} this week**\n"
+                        f"Driven by:\n"
+                        f"• +{overspend_pct:.0f}% variance against trailing baseline\n"
+                        f"• {len(cat_recent)} active transactions\n"
                     ),
-                    "suggestion": (
-                        f"Consider reducing {category} spending by "
-                        f"{self.currency}{weekly_spend - baseline_weekly:,.0f} next week "
-                        f"to stay on track."
-                    ),
-                    "data": {
-                        "current_weekly": weekly_spend,
-                        "baseline_weekly": baseline_weekly,
-                        "overspend_pct": overspend_pct,
+                    "action_plan": {
+                        "target": f"Reduce {category} by {self.currency}{deviation_amount:,.0f}",
+                        "timeframe": "over the next 7 days",
+                        "strategy": "by halting impulse buys and adhering to baseline averages",
+                        "impact": "Expected Impact: +3 to +6 score improvement"
                     }
                 })
 
     def _check_weekend_spending(self):
-        """
-        Check if weekend spending is significantly higher than weekday.
-        """
+        """Check if weekend spending is significantly higher than weekday."""
         multiplier = self.profile.temporal_profile.get("weekend_multiplier", 1.0)
+        weekday_avg = self.profile.temporal_profile.get("weekday_avg", 0)
+        weekend_avg = self.profile.temporal_profile.get("weekend_avg", 0)
 
-        if multiplier > 1.8:
-            weekday_avg = self.profile.temporal_profile["weekday_avg"]
-            weekend_avg = self.profile.temporal_profile["weekend_avg"]
-
+        if multiplier > 1.8 and weekday_avg > 0:
             self.insights.append({
                 "type": "suggestion",
                 "priority": "medium",
                 "category": "overall",
                 "title": "Weekend Spending Spike",
                 "message": (
-                    f"Your weekend spending ({self.currency}{weekend_avg:,.0f}/txn) is "
-                    f"**{multiplier:.1f}× higher** than weekdays "
-                    f"({self.currency}{weekday_avg:,.0f}/txn)."
+                    f"**Weekend transaction velocity is {multiplier:.1f}× higher than normal**\n"
+                    f"Driven by:\n"
+                    f"• {self.currency}{weekend_avg:,.0f}/txn average on weekends\n"
+                    f"• {self.currency}{weekday_avg:,.0f}/txn average on weekdays\n"
                 ),
-                "suggestion": (
-                    "Consider setting a separate weekend budget to control "
-                    "impulse spending."
-                ),
-                "data": {
-                    "weekend_avg": weekend_avg,
-                    "weekday_avg": weekday_avg,
-                    "multiplier": multiplier,
+                "action_plan": {
+                    "target": f"Cap weekend impulse threshold at {self.currency}{weekday_avg * 1.2:,.0f}/txn",
+                    "timeframe": "starting this Friday",
+                    "strategy": "by establishing a separate recreational soft-limit",
+                    "impact": "Expected Impact: +2 to +5 score stabilization"
                 }
             })
 
     def _check_spending_trend(self):
-        """
-        Is overall spending trending up month-over-month?
-        """
+        """Is overall spending trending up month-over-month?"""
         monthly = self.profile.temporal_profile.get("monthly_spend", {})
-        if len(monthly) < 2:
-            return
+        if len(monthly) < 2: return
 
         months_sorted = sorted(monthly.keys())
-        recent_months = months_sorted[-3:]  # Last 3 months
+        recent_months = months_sorted[-3:]
 
         if len(recent_months) >= 2:
             values = [monthly[m] for m in recent_months]
-            # Check if consistently increasing
             if all(values[i] < values[i + 1] for i in range(len(values) - 1)):
                 increase_pct = ((values[-1] / values[0]) - 1) * 100
+                delta = values[-1] - values[0]
 
                 self.insights.append({
                     "type": "warning",
@@ -208,29 +204,24 @@ class InsightGenerator:
                     "category": "overall",
                     "title": "Rising Spending Trend",
                     "message": (
-                        f"Your monthly spending has increased by **{increase_pct:.0f}%** "
-                        f"over the last {len(recent_months)} months. "
-                        f"If this continues, you may exceed your typical monthly budget."
+                        f"**Progressive spending creep of {self.currency}{delta:,.0f} detected**\n"
+                        f"Driven by:\n"
+                        f"• +{increase_pct:.0f}% volume over the last {len(recent_months)} consecutive periods\n"
+                        f"• Consistent upward friction across general categories\n"
                     ),
-                    "suggestion": (
-                        "Review your recent purchases and identify non-essential categories "
-                        "where you can cut back."
-                    ),
-                    "data": {
-                        "recent_monthly_spend": dict(zip(recent_months, values)),
-                        "increase_pct": increase_pct,
+                    "action_plan": {
+                        "target": "Audit recent purchases and isolate lifestyle inflation",
+                        "timeframe": "before the next billing cycle",
+                        "strategy": "by freezing discretionary spending for 48 hours to reset habits",
+                        "impact": "Expected Impact: Prevents massive -10 point long-term downgrade"
                     }
                 })
 
     def _check_category_consistency(self):
-        """
-        Identify categories with high spending variance (inconsistent).
-        """
+        """Identify categories with high spending variance."""
         for category, prof in self.profile.category_profiles.items():
-            if prof["std"] == 0 or prof["mean"] == 0:
-                continue
-
-            cv = prof["std"] / prof["mean"]  # Coefficient of variation
+            if prof["std"] == 0 or prof["mean"] == 0: continue
+            cv = prof["std"] / prof["mean"]
 
             if cv > 1.0 and prof["transaction_count"] > 5:
                 self.insights.append({
@@ -239,51 +230,40 @@ class InsightGenerator:
                     "category": category,
                     "title": f"Inconsistent {category.title()} Spending",
                     "message": (
-                        f"Your {category} spending varies a lot — from "
-                        f"{self.currency}{prof['min']:,.0f} to "
-                        f"{self.currency}{prof['max']:,.0f} "
-                        f"(avg: {self.currency}{prof['mean']:,.0f})."
+                        f"**Severe volatility detected in {category.title()}**\n"
+                        f"Driven by:\n"
+                        f"• Massive variance from {self.currency}{prof['min']:,.0f} to {self.currency}{prof['max']:,.0f}\n"
+                        f"• Unpredictable velocity impacting overall budget safety\n"
                     ),
-                    "suggestion": (
-                        f"Setting a per-transaction budget of "
-                        f"{self.currency}{prof['p75']:,.0f} for {category} "
-                        f"could help stabilize your spending."
-                    ),
-                    "data": {
-                        "cv": round(cv, 2),
-                        "mean": prof["mean"],
-                        "std": prof["std"],
+                    "action_plan": {
+                        "target": f"Enforce a per-transaction ceiling of {self.currency}{prof['p75']:,.0f}",
+                        "timeframe": "effective immediately",
+                        "strategy": "by standardizing vendors or restricting premium tier purchases",
+                        "impact": "Expected Impact: +1 to +3 score improvement via variance reduction"
                     }
                 })
 
     def _check_budget_forecast(self):
-        """
-        Predict if the user will overspend this month based on current trajectory.
+        """Predict if the user will overspend this month based on current trajectory."""
+        if len(self.df) == 0: return
 
-
-        """
-        if len(self.df) == 0:
-            return
-
-        # Current month data
         latest_date = self.df["date"].max()
         month_start = latest_date.replace(day=1)
         month_data = self.df[self.df["date"] >= month_start]
 
-        if len(month_data) == 0:
-            return
+        if len(month_data) == 0: return
 
         day_of_month = latest_date.day
         days_in_month = pd.Timestamp(latest_date).days_in_month
 
         current_month_spend = month_data["amount"].sum()
-        projected_month_spend = current_month_spend * (days_in_month / day_of_month)
-
+        projected_month_spend = current_month_spend * (days_in_month / max(1, day_of_month))
         avg_monthly = self.profile.velocity_profile.get("avg_monthly_spend", 0)
 
         if avg_monthly > 0 and projected_month_spend > avg_monthly * 1.2:
             overshoot_pct = ((projected_month_spend / avg_monthly) - 1) * 100
-            overshoot_amount = projected_month_spend - avg_monthly
+            days_remaining = days_in_month - day_of_month
+            daily_limit = max(0, (avg_monthly - current_month_spend) / max(1, days_remaining))
 
             self.insights.append({
                 "type": "prediction",
@@ -291,34 +271,25 @@ class InsightGenerator:
                 "category": "overall",
                 "title": "Budget Overshoot Forecast",
                 "message": (
-                    f"At your current pace, you'll spend about "
-                    f"{self.currency}{projected_month_spend:,.0f} this month — "
-                    f"**{overshoot_pct:.0f}% more** than your monthly average of "
-                    f"{self.currency}{avg_monthly:,.0f}."
+                    f"**Projected to exceed monthly baseline by {overshoot_pct:.0f}%**\n"
+                    f"Driven by:\n"
+                    f"• {self.currency}{current_month_spend:,.0f} already spent by day {day_of_month}\n"
+                    f"• Dangerous trajectory toward {self.currency}{projected_month_spend:,.0f}\n"
                 ),
-                "suggestion": (
-                    f"To stay within budget, limit remaining daily spending to "
-                    f"{self.currency}{max(0, (avg_monthly - current_month_spend) / max(1, days_in_month - day_of_month)):,.0f}."
-                ),
-                "data": {
-                    "current_month_spend": current_month_spend,
-                    "projected_month_spend": projected_month_spend,
-                    "avg_monthly": avg_monthly,
-                    "days_remaining": days_in_month - day_of_month,
+                "action_plan": {
+                    "target": f"Throttle daily spending to {self.currency}{daily_limit:,.0f}",
+                    "timeframe": f"for the remaining {days_remaining} days",
+                    "strategy": "by switching to an absolute-necessity operational mode",
+                    "impact": "Expected Impact: Prevents a severe -15 point Health Score penalty"
                 }
             })
 
     def _check_merchant_concentration(self):
-        """
-        Check if spending is too concentrated in few merchants.
-        """
+        """Check if spending is too concentrated in few merchants."""
         merchant_totals = self.df.groupby("merchant")["amount"].sum().sort_values(ascending=False)
         total_spend = merchant_totals.sum()
+        if total_spend == 0: return
 
-        if total_spend == 0:
-            return
-
-        # Top merchant's share
         top_merchant = merchant_totals.index[0]
         top_share = merchant_totals.iloc[0] / total_spend
 
@@ -329,22 +300,21 @@ class InsightGenerator:
                 "category": "overall",
                 "title": "Merchant Concentration",
                 "message": (
-                    f"**{top_share * 100:.0f}%** of your total spending goes to "
-                    f"**{top_merchant}**. Diversifying vendors could help you find "
-                    f"better deals."
+                    f"**Massive capital lock-in with {top_merchant}**\n"
+                    f"Driven by:\n"
+                    f"• {top_share * 100:.0f}% of total lifetime volume routed to a single vendor\n"
+                    f"• High dependency risk on vendor pricing shifts\n"
                 ),
-                "suggestion": "Compare prices across different merchants for your regular purchases.",
-                "data": {
-                    "top_merchant": top_merchant,
-                    "share_pct": round(top_share * 100, 1),
+                "action_plan": {
+                    "target": f"Divert 10% of {top_merchant} volume to competitors",
+                    "timeframe": "over the next 30 days",
+                    "strategy": "by price-comparing your core recurring basket against alternate providers",
+                    "impact": "Expected Impact: Long-term savings through volume diversification"
                 }
             })
 
     def _check_positive_habits(self):
-        """
-        Highlight positive spending behaviors — positive reinforcement matters!
-        """
-        # Find most consistent category
+        """Highlight positive spending behaviors."""
         min_cv = float("inf")
         most_consistent_cat = None
 
@@ -360,25 +330,26 @@ class InsightGenerator:
                 "type": "positive",
                 "priority": "low",
                 "category": most_consistent_cat,
-                "title": f"Great Discipline in {most_consistent_cat.title()}!",
+                "title": f"Great Discipline in {most_consistent_cat.title()}",
                 "message": (
-                    f"Your {most_consistent_cat} spending is very consistent "
-                    f"(avg: {self.currency}"
-                    f"{self.profile.category_profiles[most_consistent_cat]['mean']:,.0f}). "
-                    f"This shows great financial discipline! 🎉"
+                    f"**Exceptional stability detected in {most_consistent_cat.title()}**\n"
+                    f"Driven by:\n"
+                    f"• {self.currency}{self.profile.category_profiles[most_consistent_cat]['mean']:,.0f} average execution\n"
+                    f"• Extremely low volatility (CV < 0.5)\n"
                 ),
-                "suggestion": "Keep it up! Consistency is key to financial health.",
-                "data": {"cv": round(min_cv, 2)}
+                "action_plan": {
+                    "target": "Maintain current operational parameters",
+                    "timeframe": "ongoing",
+                    "strategy": "by continuing your existing psychological anchoring for this category",
+                    "impact": "Expected Impact: Continues to anchor your Health Score near 90+"
+                }
             })
 
     def get_insights(self) -> list[dict]:
-        """Return all generated insights, sorted by priority."""
         return self.insights
 
     def get_insights_by_type(self, insight_type: str) -> list[dict]:
-        """Get insights filtered by type (warning, suggestion, positive, prediction)."""
         return [i for i in self.insights if i["type"] == insight_type]
 
     def get_top_insights(self, n: int = 5) -> list[dict]:
-        """Get the top N most important insights."""
         return self.insights[:n]

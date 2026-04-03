@@ -348,7 +348,7 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
         
         st.markdown(f"""
         <div style="
-            width: 220px; height: 220px; margin: 0 auto; 
+            width: 260px; height: 260px; margin: 0 auto; 
             border-radius: 50%; 
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             background: conic-gradient({color} {health_score}%, #1F2937 {health_score}%);
@@ -363,7 +363,8 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
         
         top_insight = insights_gen.get_top_insights(1)
         if top_insight:
-            st.markdown(f'<div style="text-align: center; margin-top: 15px;"><span class="subtle-emphasis">{top_insight[0]["title"]}</span><br><span style="color: #E5E7EB; font-size: 0.95rem;">{top_insight[0]["suggestion"]}</span></div>', unsafe_allow_html=True)
+            top_target = top_insight[0].get("action_plan", {}).get("target", "View insights below")
+            st.markdown(f'<div style="text-align: center; margin-top: 15px;"><span class="subtle-emphasis">{top_insight[0]["title"]}</span><br><span style="color: #E5E7EB; font-size: 0.95rem;">🎯 {top_target}</span></div>', unsafe_allow_html=True)
         else:
             st.markdown('<div style="text-align: center; margin-top: 15px; color: #9CA3AF; font-size: 0.95rem;">Spending patterns are stable</div>', unsafe_allow_html=True)
             
@@ -373,13 +374,20 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
         if insights_list:
             st.markdown('<div class="insight-panel" style="margin-bottom: 0;">', unsafe_allow_html=True)
             for ins in insights_list[:4]:
+                message_br = ins["message"].replace("\\n", "<br>")
                 st.markdown(f'''<div class="insight-listItem">
-        <span class="insight-bullet">→</span> 
-        <span style="color: #E5E7EB; font-size: 0.95rem; line-height: 1.5;">
-            <strong>{ins["title"]}</strong><br>
-            <span class="text-muted">{ins["message"]}</span>
-        </span>
-    </div>''', unsafe_allow_html=True)
+<span class="insight-bullet">→</span> 
+<span style="color: #E5E7EB; font-size: 0.95rem; line-height: 1.5;">
+<strong>{ins["title"]}</strong><br>
+<span class="text-muted">{message_br}</span>
+<div class="action-layer" style="margin-top: 10px;">
+<div style="font-size: 0.70rem; text-transform: uppercase; letter-spacing: 1px; color: #34D399; margin-bottom: 6px;">Suggested Adjustment</div>
+<div class="action-target" style="font-size: 0.85rem">🎯 {ins.get("action_plan", {}).get("target", "")}</div>
+<div class="action-strategy" style="font-size: 0.80rem">⏳ {ins.get("action_plan", {}).get("timeframe", "")} — {ins.get("action_plan", {}).get("strategy", "")}</div>
+<div class="action-impact" style="font-size: 0.75rem">⚡ {ins.get("action_plan", {}).get("impact", "")}</div>
+</div>
+</span>
+</div>''', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("No significant behavioral changes detected this period.")
@@ -514,11 +522,46 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
 
 
 # ─── PAGE 2: Anomaly Explorer ─────────────────────────────────────────────────
-def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str):
+def build_progress_bar(pct: float, width: int = 10) -> str:
+    """Helper to build ASCII art progress bars."""
+    filled = int((pct) * width)
+    return "█" * filled + "░" * (width - filled)
+
+def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str, detector):
     st.markdown("## 🔴 Anomaly Explorer")
     st.caption("Investigate unusual patterns and spending deviations detected by the system.")
-    st.divider()
-
+    
+    # --- MODEL DIAGNOSTICS PANEL ---
+    perf = detector.evaluate_performance(df)
+    
+    st.markdown('<div class="card" style="padding: 15px; margin-top: 15px; margin-bottom: 30px;">', unsafe_allow_html=True)
+    if perf["has_ground_truth"]:
+        col_m1, col_m2, col_m3, col_m4 = st.columns([1.5, 1.5, 1.5, 2])
+        p_pct, r_pct, f_pct = perf["precision"], perf["recall"], perf["false_alert_rate"]
+        
+        with col_m1:
+            st.markdown(f"**Precision**<br><span style='color:#34D399; font-family:monospace;'>{build_progress_bar(p_pct)}</span> {p_pct:.0%}", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:0.75rem; color:#9CA3AF;'>{'Low false alerts' if p_pct>0.8 else 'High false alerts'}</span>", unsafe_allow_html=True)
+        with col_m2:
+            st.markdown(f"**Recall**<br><span style='color:#7C9CFF; font-family:monospace;'>{build_progress_bar(r_pct)}</span> {r_pct:.0%}", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:0.75rem; color:#9CA3AF;'>{'Good coverage' if r_pct>0.7 else 'Missing anomalies'}</span>", unsafe_allow_html=True)
+        with col_m3:
+            color_fa = "#F87171" if f_pct > 0.2 else "#FBBF24"
+            st.markdown(f"**False Alerts**<br><span style='color:{color_fa}; font-family:monospace;'>{build_progress_bar(f_pct)}</span> {f_pct:.0%}", unsafe_allow_html=True)
+        with col_m4:
+            st.markdown(f"**Engine Mode**<br><span style='color:#E5E7EB; font-weight:500;'>{perf['mode']}</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:0.75rem; color:#9CA3AF;'>System is measuring accuracy internally based on synthetic flags.</span>", unsafe_allow_html=True)
+    else:
+        # Degraded Mode (Real Data)
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.markdown(f"**Model Confidence** (No Ground Truth)<br><span style='color:#9CA3AF;'>Active</span>", unsafe_allow_html=True)
+        with col_m2:
+            st.markdown(f"**Flag Density**<br><span style='color:#E5E7EB;'>{perf['flag_density']} ({perf['anomaly_rate']:.1%})</span>", unsafe_allow_html=True)
+        with col_m3:
+            st.markdown(f"**Avg Anomaly Score**<br><span style='color:#E5E7EB;'>{perf['avg_score']:.2f}</span>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     anomalies = df[df["is_anomaly"] == 1].copy()
 
     if len(anomalies) == 0:
@@ -650,9 +693,15 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str):
             exp_col1, exp_col2 = st.columns([3, 1])
             with exp_col1:
                 st.markdown("**Why was this flagged?**")
-                explanation = row.get("explanation", "")
-                if explanation:
-                    st.markdown(explanation)
+                struct = row.get("structured_explanation", {})
+                if isinstance(struct, dict) and struct.get("cause"):
+                    st.markdown(f"**What happened:**<br><span style='color:#E5E7EB;'>{struct.get('what_happened', 'N/A')}</span>", unsafe_allow_html=True)
+                    st.markdown(f"**Baseline & Deviation:**<br><span style='color:#9CA3AF;'>{struct.get('baseline', 'N/A')}</span> <span style='color:#F87171;'>({struct.get('deviation', 'N/A')})</span>", unsafe_allow_html=True)
+                    st.markdown(f"**Cause:**<br><span style='color:#E5E7EB;'>{struct.get('cause', 'Multi-factor')}</span>", unsafe_allow_html=True)
+                    
+                    if row.get("explanation"):
+                        with st.expander("Show detailed breakdown"):
+                            st.caption(row.get("explanation"))
                 else:
                     st.info("Multi-factor anomaly: combination of amount, category, and timing.")
             with exp_col2:
@@ -935,9 +984,9 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
             mode="gauge+number+delta",
             value=total,
             delta={"reference": 70, "valueformat": ".1f"},
-            title={"text": f"Health Score<br><span style='font-size:1.5rem'>{grade}</span>",
-                   "font": {"size": 16, "color": "#FAFAFA"}},
-            number={"font": {"size": 48, "color": gauge_color}, "suffix": "/100"},
+            title={"text": f"Health Score<br><span style='font-size:1.3rem'>{grade}</span>",
+                   "font": {"size": 15, "color": "#FAFAFA"}},
+            number={"font": {"size": 36, "color": gauge_color}, "suffix": "/100"},
             gauge={
                 "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#8B8FA8"},
                 "bar": {"color": gauge_color, "thickness": 0.25},
@@ -957,8 +1006,8 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
         fig_gauge.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             font=dict(color="#FAFAFA"),
-            height=300,
-            margin=dict(l=10, r=10, t=10, b=10),
+            height=320,
+            margin=dict(l=20, r=20, t=50, b=30),
         )
         st.plotly_chart(fig_gauge, use_container_width=True)
 
@@ -994,13 +1043,20 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
             icon, css_class = type_icons.get(insight["type"], ("ℹ️", "insight-suggestion"))
             priority_badge = f"{'🔴' if insight['priority'] == 'high' else '🟡' if insight['priority'] == 'medium' else '🔵'}"
 
+            message_br = insight['message'].replace("\\n", "<br>")
             st.markdown(f"""
-            <div class="{css_class}">
-                <div class="insight-title">{icon} {insight['title']} {priority_badge}</div>
-                <div class="insight-msg">{insight['message']}</div>
-                <div class="insight-tip">💡 {insight.get('suggestion', '')}</div>
-            </div>
-            """, unsafe_allow_html=True)
+<div class="{css_class}">
+<div class="insight-title">{icon} {insight['title']} {priority_badge}</div>
+<div class="insight-msg">{message_br}</div>
+<!-- ACTION LAYER -->
+<div class="action-layer">
+<div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #34D399; margin-bottom: 8px;">Suggested Adjustment</div>
+<div class="action-target">🎯 {insight.get("action_plan", {}).get("target", "")}</div>
+<div class="action-strategy">⏳ {insight.get("action_plan", {}).get("timeframe", "")} — {insight.get("action_plan", {}).get("strategy", "")}</div>
+<div class="action-impact">⚡ {insight.get("action_plan", {}).get("impact", "")}</div>
+</div>
+</div>
+""", unsafe_allow_html=True)
 
 
 # ─── Main App ─────────────────────────────────────────────────────────────────
@@ -1025,7 +1081,7 @@ def main():
     if "Overview" in page:
         page_overview(df, profile, scorer, insights_gen, currency_symbol)
     elif "Anomalies" in page:
-        page_anomalies(df, profile, currency_symbol)
+        page_anomalies(df, profile, currency_symbol, detector)
     elif "Trends" in page:
         page_trends(df, currency_symbol)
     elif "Profile" in page:

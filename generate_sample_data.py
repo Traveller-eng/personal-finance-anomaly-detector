@@ -11,7 +11,7 @@ HOW IT WORKS:
     2. Generates 12 months of daily transactions following these profiles
     3. Injects ~5% anomalies: unusually large amounts, unusual timing,
        new merchants, spending spikes
-    4. Saves as CSV with an optional 'is_injected_anomaly' column for validation
+    4. Saves as CSV with an optional 'is_actual_anomaly' column for validation
 
 WHY THIS DESIGN:
     - Real bank data has privacy issues — synthetic data lets us demo freely
@@ -124,7 +124,7 @@ def generate_normal_transactions(start_date: datetime, end_date: datetime) -> li
                         "amount": round(profile["mean"] + np.random.normal(0, 500), 2),
                         "category": category,
                         "merchant": random.choice(profile["merchants"]),
-                        "is_injected_anomaly": False
+                        "is_actual_anomaly": False
                     })
                 continue
 
@@ -149,7 +149,7 @@ def generate_normal_transactions(start_date: datetime, end_date: datetime) -> li
                     "amount": round(amount, 2),
                     "category": category,
                     "merchant": random.choice(profile["merchants"]),
-                    "is_injected_anomaly": False
+                    "is_actual_anomaly": False
                 })
 
         current_date += timedelta(days=1)
@@ -187,7 +187,7 @@ def inject_anomalies(transactions: list[dict], anomaly_fraction: float = 0.05) -
                 "amount": round(spike_amount, 2),
                 "category": category,
                 "merchant": random.choice(profile["merchants"]),
-                "is_injected_anomaly": True
+                "is_actual_anomaly": True
             })
 
         elif anomaly_type == "unusual_timing":
@@ -199,7 +199,7 @@ def inject_anomalies(transactions: list[dict], anomaly_fraction: float = 0.05) -
                 "amount": round(profile["mean"] * random.uniform(2, 4), 2),
                 "category": category,
                 "merchant": random.choice(profile["merchants"]),
-                "is_injected_anomaly": True
+                "is_actual_anomaly": True
             })
 
         elif anomaly_type == "category_burst":
@@ -213,7 +213,7 @@ def inject_anomalies(transactions: list[dict], anomaly_fraction: float = 0.05) -
                     "amount": round(np.random.normal(profile["mean"], profile["std"]), 2),
                     "category": category,
                     "merchant": random.choice(profile["merchants"]),
-                    "is_injected_anomaly": True
+                    "is_actual_anomaly": True
                 })
 
         elif anomaly_type == "new_merchant":
@@ -230,7 +230,7 @@ def inject_anomalies(transactions: list[dict], anomaly_fraction: float = 0.05) -
                 "amount": round(profile["mean"] * random.uniform(1.5, 5), 2),
                 "category": category,
                 "merchant": random.choice(new_merchants),
-                "is_injected_anomaly": True
+                "is_actual_anomaly": True
             })
 
     return transactions + anomalies
@@ -246,8 +246,8 @@ def generate_dataset() -> pd.DataFrame:
 
     print("🔴 Injecting anomalies...")
     transactions = inject_anomalies(transactions)
-    normal_count = sum(1 for t in transactions if not t["is_injected_anomaly"])
-    anomaly_count = sum(1 for t in transactions if t["is_injected_anomaly"])
+    normal_count = sum(1 for t in transactions if not t["is_actual_anomaly"])
+    anomaly_count = sum(1 for t in transactions if t["is_actual_anomaly"])
     print(f"   ✅ Injected {anomaly_count} anomalies (total: {normal_count + anomaly_count})")
 
     df = pd.DataFrame(transactions)
@@ -272,7 +272,7 @@ def save_dataset(df: pd.DataFrame, filepath: str = OUTPUT_FILE):
     print(f"   Avg transaction: ₹{df['amount'].mean():,.2f}")
     print(f"\n   Category breakdown:")
     for cat, group in df.groupby("category"):
-        anomaly_ct = group["is_injected_anomaly"].sum()
+        anomaly_ct = group["is_actual_anomaly"].sum()
         print(f"     {cat:15s} — {len(group):4d} txns, avg ₹{group['amount'].mean():,.0f}"
               f"  ({anomaly_ct} anomalies)")
 

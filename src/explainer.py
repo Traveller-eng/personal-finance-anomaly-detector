@@ -76,11 +76,11 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
     amount = row["amount"]
     factors = []
     explanation_parts = []
-    
     structured = {
-        "typical": "N/A",
+        "what_happened": f"{currency}{amount:,.0f} spent on {category}",
+        "baseline": "N/A",
         "deviation": "N/A",
-        "reason": ""
+        "cause": []
     }
 
     baseline = profile.get_category_baseline(category)
@@ -90,14 +90,14 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
         avg = baseline["mean"]
         normal_low, normal_high = baseline["normal_range"]
         
-        structured["typical"] = f"{currency}{max(0, normal_low):,.0f}–{currency}{normal_high:,.0f}"
+        structured["baseline"] = f"{currency}{max(0, normal_low):,.0f}–{currency}{normal_high:,.0f} typical range"
 
         if amount > normal_high:
             factors.append("amount_spike")
             multiplier = amount / avg if avg > 0 else 0
             deviation_pct = ((amount / avg) - 1) * 100 if avg > 0 else 0
-            structured["deviation"] = f"+{deviation_pct:.0f}%"
-            structured["reason"] += f"Significantly higher than average {category} spending. "
+            structured["deviation"] = f"+{deviation_pct:.0f}% above normal"
+            structured["cause"].append(f"Significantly higher than average {category} spending")
             
             explanation_parts.append(
                 f"You usually spend {currency}{max(0, normal_low):,.0f}–{currency}{normal_high:,.0f} "
@@ -107,8 +107,8 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
         elif amount < normal_low and normal_low > 0:
             factors.append("amount_drop")
             deviation_pct = ((amount / avg) - 1) * 100
-            structured["deviation"] = f"{deviation_pct:.0f}%"
-            structured["reason"] += f"Unusually low {category} spending. "
+            structured["deviation"] = f"{deviation_pct:.0f}% below normal"
+            structured["cause"].append(f"Unusually low {category} spending")
             
             explanation_parts.append(
                 f"This {currency}{amount:,.0f} on {category} is unusually low. "
@@ -121,7 +121,7 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
         daily_avg = rolling_30d
         if amount > daily_avg * 3:
             factors.append("above_trend")
-            structured["reason"] += "Exceeds 30-day daily average by 3x. "
+            structured["cause"].append("Exceeds 30-day daily average by 3x")
             explanation_parts.append(
                 f"Your recent daily spending average is {currency}{daily_avg:,.0f}. "
                 f"This single transaction exceeds 3× that average."
@@ -132,7 +132,7 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
     if merchant and baseline:
         if not profile.is_merchant_known(merchant, category):
             factors.append("new_merchant")
-            structured["reason"] += f"New or rare vendor ({merchant}). "
+            structured["cause"].append(f"New or rare vendor ({merchant})")
             explanation_parts.append(
                 f"**{merchant}** is not among your usual {category} merchants. "
                 f"This is a new or rare vendor for you."
@@ -147,7 +147,7 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
 
         if day_share < 0.08:  # Less than 8% of transactions happen on this day
             factors.append("unusual_day")
-            structured["reason"] += f"Unusual day for transactions ({day_name}). "
+            structured["cause"].append(f"Unusual day for transactions ({day_name})")
             explanation_parts.append(
                 f"You rarely make transactions on {day_name}s "
                 f"(only {day_share * 100:.1f}% of your transactions)."
@@ -159,7 +159,7 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
         weekday_avg = profile.temporal_profile.get("weekday_avg", 0)
         if weekday_avg > 0 and amount > weekday_avg * 4:
             factors.append("weekend_spike")
-            structured["reason"] += "Weekend spending spike. "
+            structured["cause"].append("Weekend spending spike")
             explanation_parts.append(
                 f"This weekend transaction is significantly higher than your "
                 f"weekday average of {currency}{weekday_avg:,.0f}."
@@ -172,11 +172,11 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
             f"was flagged as unusual based on a combination of spending patterns."
         )
         factors.append("multi_factor")
-        structured["reason"] = "Combination of multi-factor deviations."
+        structured["cause"].append("Combination of multi-factor deviations (e.g. slight timing and slight merchant rarity)")
     else:
         explanation = " ".join(explanation_parts)
 
-    structured["reason"] = structured["reason"].strip()
+    structured["cause"] = " + ".join(structured["cause"])
     return explanation, structured, factors
 
 

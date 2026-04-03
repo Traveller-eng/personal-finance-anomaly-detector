@@ -189,3 +189,60 @@ class AnomalyDetector:
                 "mean": float(df["anomaly_score"].mean()),
             }
         }
+
+    def evaluate_performance(self, df: pd.DataFrame) -> dict:
+        """
+        Evaluate Model Performance against ground truth labels if they exist.
+        If they do not exist (e.g., real bank uploads), fallback to a degraded
+        Signal Confidence summary.
+        """
+        if "is_anomaly" not in df.columns:
+            return {"error": "Run fit_predict first"}
+
+        predicted = df["is_anomaly"].astype(int)
+        anomaly_rate = predicted.mean()
+        avg_score = df["anomaly_score"].mean()
+
+        has_ground_truth = "is_actual_anomaly" in df.columns
+
+        if not has_ground_truth:
+            return {
+                "has_ground_truth": False,
+                "anomaly_rate": float(anomaly_rate),
+                "avg_score": float(avg_score),
+                "flag_density": "High" if anomaly_rate > 0.08 else ("Moderate" if anomaly_rate > 0.03 else "Low")
+            }
+
+        truth = df["is_actual_anomaly"].astype(int)
+
+        # Confusion Matrix logic (Raw NumPy conditions to avoid division by zero exceptions structurally)
+        tp = int(((predicted == 1) & (truth == 1)).sum())
+        fp = int(((predicted == 1) & (truth == 0)).sum())
+        fn = int(((predicted == 0) & (truth == 1)).sum())
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+        false_alert_rate = fp / (tp + fp) if (tp + fp) > 0 else 0.0
+
+        # Behavioral Type Tag
+        if precision > 0.8 and recall > 0.7:
+            mode = "Balanced Detection"
+        elif precision >= 0.85:
+            mode = "Conservative (Low Noise)"
+        elif recall >= 0.85:
+            mode = "Aggressive (High Sensitivity)"
+        else:
+            mode = "Exploratory"
+
+        return {
+            "has_ground_truth": True,
+            "precision": float(precision),
+            "recall": float(recall),
+            "f1": float(f1),
+            "false_alert_rate": float(false_alert_rate),
+            "mode": mode,
+            "anomaly_rate": float(anomaly_rate),
+            "avg_score": float(avg_score),
+            "stats": {"tp": tp, "fp": fp, "fn": fn}
+        }

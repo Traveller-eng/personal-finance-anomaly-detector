@@ -1,0 +1,46 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lenovo\OneDrive\Desktop\Personal Finance Anomaly Detector
+plugins: anyio-4.10.0
+collected 77 items
+
+tests\test_anomaly_detector.py ........                                  [ 10%]
+tests\test_explainer.py ........                                         [ 20%]
+tests\test_health_scorer.py ..F                                          [ 24%]
+tests\test_insights.py ...                                               [ 28%]
+tests\test_preprocessor.py ...............                               [ 48%]
+tests\test_stress_suite.py ........................................      [100%]
+
+================================== FAILURES ===================================
+_______________________ test_health_scorer_perfect_user _______________________
+
+    def test_health_scorer_perfect_user():
+        """Test response to an exclusively non-anomalous standard user."""
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=30),
+            "amount": [100] * 30,
+            "is_anomaly": [0] * 30,
+            "category": ["Food"] * 30
+        })
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"monthly_spend": {"2026-01": 3000}}
+        profile_mock.categorical_profile = {}
+    
+        scorer = HealthScorer(df, profile_mock)
+        score = scorer.total_score
+    
+>       assert score >= 85 # Perfect score basically
+        ^^^^^^^^^^^^^^^^^^
+E       assert np.float64(67.0) >= 85
+
+tests\test_health_scorer.py:55: AssertionError
+============================== warnings summary ===============================
+tests/test_stress_suite.py::TestPreprocessor::test_unparseable_dates_handled
+  C:\Users\Lenovo\OneDrive\Desktop\Personal Finance Anomaly Detector\tests\..\src\preprocessor.py:67: UserWarning: Could not infer format, so each element will be parsed individually, falling back to `dateutil`. To ensure parsing is consistent and as-expected, please specify a format.
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_health_scorer.py::test_health_scorer_perfect_user - assert ...
+================== 1 failed, 76 passed, 1 warning in 10.63s ===================
