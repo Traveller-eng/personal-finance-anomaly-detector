@@ -191,8 +191,8 @@ class AnomalyDetector:
                 # Rolling stats
                 cat_df = cat_df.sort_values("date")
                 rolling = cat_df["amount"].rolling(window=min(30, len(cat_df)), min_periods=3)
-                roll_mean = rolling.mean().shift(1).fillna(method='bfill')
-                roll_std = rolling.std().shift(1).fillna(method='bfill')
+                roll_mean = rolling.mean().shift(1).bfill()
+                roll_std = rolling.std().shift(1).bfill()
                 
                 # Z-score computation
                 z_scores = (cat_df["amount"] - roll_mean) / roll_std.replace(0, 1) # prevent div by zero
