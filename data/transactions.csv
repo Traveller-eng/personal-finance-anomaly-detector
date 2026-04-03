@@ -1,0 +1,754 @@
+date,amount,category,merchant,is_injected_anomaly
+2025-04-01,409.61,food,Swiggy,False
+2025-04-01,141.7,transport,Ola,False
+2025-04-01,15323.84,rent,Landlord UPI,False
+2025-04-02,532.76,food,Zomato,False
+2025-04-02,135.95,transport,Uber,False
+2025-04-03,321.9,food,Cafe Coffee Day,False
+2025-04-03,244.75,transport,Ola,False
+2025-04-04,442.09,food,Zomato,False
+2025-04-04,121.83,transport,Rapido,False
+2025-04-05,1129.27,shopping,Croma,False
+2025-04-05,415.11,food,Subway,False
+2025-04-06,294.11,food,Local Restaurant,False
+2025-04-07,1693.57,shopping,Decathlon,False
+2025-04-07,35.2,transport,Rapido,False
+2025-04-08,143.01,food,Local Restaurant,False
+2025-04-08,1050.17,shopping,IKEA,False
+2025-04-08,89.23,transport,IRCTC,False
+2025-04-09,387.71,food,Swiggy,False
+2025-04-09,95.52,transport,Uber,False
+2025-04-10,866.41,entertainment,YouTube Premium,False
+2025-04-10,180.52,food,Subway,False
+2025-04-11,322.91,food,Subway,False
+2025-04-12,515.05,bills,Water Board,False
+2025-04-12,358.1,food,Dominos,False
+2025-04-13,284.67,food,Swiggy,False
+2025-04-13,156.66,transport,Petrol Pump,False
+2025-04-14,211.88,food,Swiggy,False
+2025-04-16,172.54,transport,Rapido,False
+2025-04-16,349.84,entertainment,BookMyShow,False
+2025-04-17,315.0,food,Swiggy,False
+2025-04-17,113.9,transport,Uber,False
+2025-04-18,2981.82,shopping,Nykaa,False
+2025-04-19,348.38,food,Local Restaurant,False
+2025-04-20,223.07,food,Zomato,False
+2025-04-21,76.75,transport,Ola,False
+2025-04-21,448.71,food,Swiggy,False
+2025-04-22,162.53,transport,Metro Card Recharge,False
+2025-04-23,114.84,food,Blinkit Groceries,False
+2025-04-23,70.31,transport,IRCTC,False
+2025-04-23,549.22,entertainment,PVR Cinemas,False
+2025-04-24,438.62,food,Local Restaurant,False
+2025-04-24,1637.09,shopping,Nykaa,False
+2025-04-24,143.06,transport,Ola,False
+2025-04-25,131.93,transport,Petrol Pump,False
+2025-04-26,320.04,entertainment,Netflix,False
+2025-04-26,172.58,food,Blinkit Groceries,False
+2025-04-27,170.62,transport,Rapido,False
+2025-04-27,59.24,entertainment,YouTube Premium,False
+2025-04-27,294.72,food,Blinkit Groceries,False
+2025-04-27,2345.7,shopping,Nykaa,False
+2025-04-28,388.89,food,Blinkit Groceries,False
+2025-04-29,303.79,food,Local Restaurant,False
+2025-04-29,396.92,health,Apollo Pharmacy,False
+2025-04-30,423.4,food,BigBasket,False
+2025-04-30,211.86,transport,IRCTC,False
+2025-05-01,461.75,food,McDonald's,False
+2025-05-01,632.16,bills,Gas Connection,False
+2025-05-01,14845.39,rent,Landlord UPI,False
+2025-05-02,389.75,food,Dominos,False
+2025-05-03,1116.66,shopping,Croma,False
+2025-05-03,2975.56,health,New App Payment,True
+2025-05-03,467.07,food,BigBasket,False
+2025-05-04,327.72,food,Dominos,False
+2025-05-04,614.93,shopping,Reliance Digital,False
+2025-05-05,78.23,transport,Metro Card Recharge,False
+2025-05-05,703.13,entertainment,BookMyShow,False
+2025-05-06,512.75,food,Blinkit Groceries,False
+2025-05-06,145.68,transport,Uber,False
+2025-05-07,470.42,food,McDonald's,False
+2025-05-07,171.7,transport,Ola,False
+2025-05-07,670.98,bills,Electricity Board,False
+2025-05-08,1789.12,shopping,Reliance Digital,False
+2025-05-09,242.28,transport,Ola,False
+2025-05-09,1964.17,education,Book Store,False
+2025-05-10,537.76,food,Subway,False
+2025-05-11,2157.52,shopping,Nykaa,False
+2025-05-11,35.63,food,Blinkit Groceries,False
+2025-05-12,360.45,food,Cafe Coffee Day,False
+2025-05-13,756.07,bills,Gas Connection,False
+2025-05-13,30.75,transport,Rapido,False
+2025-05-13,1573.41,shopping,Croma,False
+2025-05-13,314.12,food,Swiggy,False
+2025-05-14,392.85,food,BigBasket,False
+2025-05-14,2682.32,shopping,Reliance Digital,False
+2025-05-14,118.9,transport,IRCTC,False
+2025-05-15,101.49,transport,Metro Card Recharge,False
+2025-05-15,699.65,bills,Broadband,False
+2025-05-16,459.85,food,Cafe Coffee Day,False
+2025-05-17,1470.24,education,Book Store,False
+2025-05-17,389.45,food,Subway,False
+2025-05-18,411.59,food,McDonald's,False
+2025-05-19,361.65,food,Zomato,False
+2025-05-19,742.16,entertainment,Spotify,False
+2025-05-20,265.75,food,Swiggy,False
+2025-05-20,1237.87,shopping,Nykaa,False
+2025-05-21,126.47,transport,Ola,False
+2025-05-21,134.12,entertainment,Netflix,False
+2025-05-22,167.77,transport,Petrol Pump,False
+2025-05-23,381.33,food,BigBasket,False
+2025-05-24,135.92,transport,Metro Card Recharge,False
+2025-05-24,350.61,food,BigBasket,False
+2025-05-25,180.16,food,Blinkit Groceries,False
+2025-05-25,124.76,transport,Uber,False
+2025-05-26,308.87,food,Dominos,False
+2025-05-26,299.43,entertainment,PVR Cinemas,False
+2025-05-27,330.65,food,Subway,False
+2025-05-27,601.01,entertainment,Steam Games,False
+2025-05-27,3886.19,education,Book Store,False
+2025-05-28,370.95,food,Subway,False
+2025-05-29,380.91,food,Local Restaurant,False
+2025-05-29,145.53,transport,Metro Card Recharge,False
+2025-05-30,119.75,food,Dominos,False
+2025-05-30,148.41,transport,Metro Card Recharge,False
+2025-05-31,357.23,food,Dominos,False
+2025-05-31,3470.59,shopping,IKEA,False
+2025-05-31,138.46,transport,Metro Card Recharge,False
+2025-06-01,14415.66,rent,Landlord UPI,False
+2025-06-01,386.19,food,Cafe Coffee Day,False
+2025-06-01,491.32,entertainment,BookMyShow,False
+2025-06-02,218.57,transport,Uber,False
+2025-06-03,195.12,transport,Rapido,False
+2025-06-04,197.46,transport,Uber,False
+2025-06-05,772.49,shopping,Reliance Digital,False
+2025-06-05,234.17,transport,Rapido,False
+2025-06-06,65.89,transport,Rapido,False
+2025-06-06,917.37,bills,Broadband,False
+2025-06-07,612.85,food,McDonald's,False
+2025-06-08,231.14,food,BigBasket,False
+2025-06-09,116.02,transport,Metro Card Recharge,False
+2025-06-10,361.96,food,Blinkit Groceries,False
+2025-06-10,1097.22,shopping,Croma,False
+2025-06-10,56.96,transport,Petrol Pump,False
+2025-06-10,620.57,health,1mg,False
+2025-06-12,222.52,food,Local Restaurant,False
+2025-06-12,178.42,transport,IRCTC,False
+2025-06-13,2711.03,health,Foreign Website,True
+2025-06-14,239.67,food,BigBasket,False
+2025-06-15,535.99,food,Cafe Coffee Day,False
+2025-06-16,256.01,food,Swiggy,False
+2025-06-16,130.68,transport,IRCTC,False
+2025-06-17,447.62,food,Cafe Coffee Day,False
+2025-06-17,76.15,transport,Ola,False
+2025-06-18,377.3,food,Blinkit Groceries,False
+2025-06-18,2545.71,shopping,Amazon,False
+2025-06-18,53.55,transport,Petrol Pump,False
+2025-06-18,546.16,entertainment,Spotify,False
+2025-06-19,381.19,food,Local Restaurant,False
+2025-06-19,196.91,transport,Metro Card Recharge,False
+2025-06-20,201.57,food,Zomato,False
+2025-06-20,70.77,transport,Ola,False
+2025-06-20,630.49,entertainment,Spotify,False
+2025-06-21,385.64,food,Blinkit Groceries,False
+2025-06-21,850.1,bills,Electricity Board,False
+2025-06-22,391.57,food,Cafe Coffee Day,False
+2025-06-23,268.4,food,Cafe Coffee Day,False
+2025-06-23,163.94,transport,Ola,False
+2025-06-24,385.17,food,Blinkit Groceries,False
+2025-06-25,264.28,food,Subway,False
+2025-06-25,1173.15,bills,Airtel,False
+2025-06-26,618.46,entertainment,Spotify,False
+2025-06-27,546.96,shopping,IKEA,False
+2025-06-27,664.14,entertainment,BookMyShow,False
+2025-06-28,233.04,food,Dominos,False
+2025-06-29,444.45,food,McDonald's,False
+2025-06-29,2426.88,shopping,Flipkart,False
+2025-06-30,251.52,food,Subway,False
+2025-06-30,2270.7,shopping,Decathlon,False
+2025-07-01,399.53,food,Cafe Coffee Day,False
+2025-07-01,15411.03,rent,Landlord UPI,False
+2025-07-02,577.62,food,Swiggy,False
+2025-07-02,135.28,transport,Uber,False
+2025-07-02,311.57,entertainment,Spotify,False
+2025-07-03,243.26,food,Cafe Coffee Day,False
+2025-07-03,101.05,transport,Metro Card Recharge,False
+2025-07-04,340.75,food,Dominos,False
+2025-07-04,170.47,transport,Metro Card Recharge,False
+2025-07-04,2276.69,education,Book Store,False
+2025-07-05,449.26,food,Blinkit Groceries,False
+2025-07-06,351.56,food,Local Restaurant,False
+2025-07-06,237.21,transport,Metro Card Recharge,False
+2025-07-07,318.24,food,Subway,False
+2025-07-08,676.42,food,McDonald's,False
+2025-07-09,425.08,food,Dominos,False
+2025-07-09,814.27,shopping,Croma,False
+2025-07-09,85.75,transport,IRCTC,False
+2025-07-09,620.62,entertainment,BookMyShow,False
+2025-07-10,323.18,food,McDonald's,False
+2025-07-11,435.68,food,Cafe Coffee Day,False
+2025-07-11,618.31,entertainment,YouTube Premium,False
+2025-07-12,341.26,food,Cafe Coffee Day,False
+2025-07-12,1409.19,entertainment,Steam Games,True
+2025-07-12,99.19,transport,Uber,False
+2025-07-13,168.22,food,Dominos,False
+2025-07-13,1142.79,shopping,Flipkart,False
+2025-07-14,452.77,food,Cafe Coffee Day,False
+2025-07-15,375.69,food,McDonald's,False
+2025-07-15,75.26,transport,Metro Card Recharge,False
+2025-07-16,1638.54,shopping,IKEA,False
+2025-07-17,396.24,food,Cafe Coffee Day,False
+2025-07-17,792.91,shopping,Amazon,False
+2025-07-18,368.45,food,McDonald's,False
+2025-07-18,153.49,transport,Rapido,False
+2025-07-19,212.84,food,Swiggy,False
+2025-07-20,392.93,food,Dominos,False
+2025-07-20,1948.63,shopping,Decathlon,False
+2025-07-21,155.58,entertainment,Spotify,False
+2025-07-21,213.23,transport,Uber,False
+2025-07-21,479.97,food,Cafe Coffee Day,False
+2025-07-22,318.65,health,Gym Membership,False
+2025-07-23,411.8,food,Cafe Coffee Day,False
+2025-07-23,628.45,entertainment,Spotify,False
+2025-07-24,537.58,entertainment,PVR Cinemas,True
+2025-07-24,409.1,entertainment,BookMyShow,True
+2025-07-24,485.76,entertainment,BookMyShow,True
+2025-07-24,576.95,entertainment,BookMyShow,True
+2025-07-24,3020.86,entertainment,BookMyShow,True
+2025-07-25,184.25,transport,Metro Card Recharge,False
+2025-07-25,4582.19,shopping,Amazon,False
+2025-07-25,411.81,food,Zomato,False
+2025-07-26,486.27,food,BigBasket,False
+2025-07-27,2021.11,shopping,Decathlon,False
+2025-07-27,464.48,food,Cafe Coffee Day,False
+2025-07-27,131.08,transport,Metro Card Recharge,False
+2025-07-28,441.08,food,McDonald's,False
+2025-07-28,881.74,shopping,Croma,False
+2025-07-28,135.79,transport,Uber,False
+2025-07-29,288.88,transport,Ola,False
+2025-07-29,1565.5,shopping,Decathlon,False
+2025-07-29,291.76,food,Swiggy,False
+2025-07-30,477.46,bills,Airtel,False
+2025-07-30,191.18,transport,Petrol Pump,False
+2025-07-30,125.93,food,Local Restaurant,False
+2025-07-31,2371.16,shopping,Decathlon,False
+2025-07-31,293.37,food,Swiggy,False
+2025-08-01,15032.14,rent,Landlord UPI,False
+2025-08-02,220.67,food,Swiggy,False
+2025-08-03,190.78,transport,IRCTC,False
+2025-08-03,317.41,entertainment,Netflix,False
+2025-08-03,264.16,food,Subway,False
+2025-08-04,375.98,food,BigBasket,False
+2025-08-04,152.73,transport,Petrol Pump,False
+2025-08-05,271.81,food,BigBasket,False
+2025-08-05,278.64,transport,Metro Card Recharge,False
+2025-08-06,188.04,transport,Rapido,False
+2025-08-07,10.0,shopping,Flipkart,False
+2025-08-07,546.61,entertainment,Netflix,False
+2025-08-08,270.59,food,Zomato,False
+2025-08-09,452.29,food,Cafe Coffee Day,False
+2025-08-10,254.9,food,McDonald's,False
+2025-08-10,1408.21,shopping,Croma,False
+2025-08-11,410.6,food,BigBasket,False
+2025-08-11,1665.5,education,Coursera,False
+2025-08-11,77.98,transport,Rapido,False
+2025-08-11,2192.6,shopping,Croma,False
+2025-08-12,255.93,transport,Petrol Pump,False
+2025-08-12,977.34,shopping,Amazon,False
+2025-08-12,293.01,food,Subway,False
+2025-08-13,174.3,transport,Uber,False
+2025-08-14,205.07,transport,Metro Card Recharge,False
+2025-08-14,198.69,food,Blinkit Groceries,False
+2025-08-15,211.95,transport,Ola,False
+2025-08-15,144.19,health,PharmEasy,False
+2025-08-15,604.66,food,Blinkit Groceries,False
+2025-08-16,107.54,transport,IRCTC,False
+2025-08-16,291.89,food,Cafe Coffee Day,False
+2025-08-16,2513.53,shopping,Flipkart,False
+2025-08-16,610.95,entertainment,Steam Games,False
+2025-08-17,442.96,food,McDonald's,False
+2025-08-17,758.46,shopping,Amazon,False
+2025-08-17,485.12,entertainment,BookMyShow,False
+2025-08-18,10.0,food,Subway,False
+2025-08-18,88.54,transport,Rapido,False
+2025-08-19,319.69,food,Subway,False
+2025-08-19,75.13,transport,Petrol Pump,False
+2025-08-19,908.1,entertainment,BookMyShow,False
+2025-08-20,2399.14,education,Coursera,True
+2025-08-20,1962.37,education,Coursera,True
+2025-08-20,3103.3,education,Coaching Center,True
+2025-08-20,2114.23,education,Coursera,True
+2025-08-20,123.6,transport,Ola,False
+2025-08-20,355.89,shopping,Flipkart,False
+2025-08-20,1455.08,education,Book Store,True
+2025-08-21,157.84,transport,Ola,False
+2025-08-22,236.48,transport,Petrol Pump,False
+2025-08-23,177.7,food,McDonald's,False
+2025-08-23,790.79,entertainment,PVR Cinemas,False
+2025-08-24,351.23,food,McDonald's,False
+2025-08-24,91.11,transport,Metro Card Recharge,False
+2025-08-24,892.42,bills,Electricity Board,False
+2025-08-25,161.94,transport,Metro Card Recharge,False
+2025-08-26,113.99,transport,Petrol Pump,False
+2025-08-28,358.38,food,BigBasket,False
+2025-08-28,126.88,transport,Rapido,False
+2025-08-29,4412.34,shopping,Croma,True
+2025-08-29,363.62,food,McDonald's,False
+2025-08-29,2029.7,shopping,Flipkart,False
+2025-08-29,245.16,transport,Metro Card Recharge,False
+2025-08-30,3206.43,shopping,Myntra,False
+2025-08-30,201.46,food,McDonald's,False
+2025-08-31,115.75,food,Zomato,False
+2025-09-01,776.5,health,PharmEasy,False
+2025-09-01,15140.5,rent,Landlord UPI,False
+2025-09-01,140.89,transport,IRCTC,False
+2025-09-02,352.66,entertainment,Steam Games,False
+2025-09-02,1333.5,shopping,Myntra,False
+2025-09-02,275.28,food,Blinkit Groceries,False
+2025-09-02,120.42,transport,Rapido,False
+2025-09-03,451.95,food,McDonald's,False
+2025-09-04,108.43,transport,Rapido,False
+2025-09-04,392.84,food,Dominos,False
+2025-09-05,203.98,transport,Rapido,False
+2025-09-06,198.77,transport,Metro Card Recharge,False
+2025-09-06,386.88,food,Blinkit Groceries,False
+2025-09-07,359.95,entertainment,Steam Games,False
+2025-09-07,836.8,shopping,Nykaa,False
+2025-09-07,425.56,food,Cafe Coffee Day,False
+2025-09-09,186.62,transport,Metro Card Recharge,False
+2025-09-09,439.68,food,McDonald's,False
+2025-09-10,529.33,entertainment,BookMyShow,False
+2025-09-10,347.49,food,Zomato,False
+2025-09-11,636.77,entertainment,Spotify,False
+2025-09-11,681.69,bills,Jio Recharge,False
+2025-09-11,226.66,transport,Petrol Pump,False
+2025-09-12,137.87,transport,Rapido,False
+2025-09-12,445.58,entertainment,Spotify,False
+2025-09-13,481.85,food,Zomato,False
+2025-09-14,449.05,food,Swiggy,False
+2025-09-14,198.81,transport,Metro Card Recharge,False
+2025-09-15,826.37,entertainment,PVR Cinemas,False
+2025-09-16,352.52,food,Swiggy,False
+2025-09-16,190.92,transport,Ola,False
+2025-09-17,312.77,food,Swiggy,False
+2025-09-17,169.45,transport,IRCTC,False
+2025-09-18,185.71,transport,Ola,False
+2025-09-18,636.36,bills,Airtel,False
+2025-09-18,1577.6,shopping,Nykaa,False
+2025-09-18,334.38,food,Dominos,False
+2025-09-19,89.64,transport,IRCTC,False
+2025-09-19,601.09,food,BigBasket,False
+2025-09-20,204.3,food,Zomato,False
+2025-09-21,697.92,entertainment,PVR Cinemas,False
+2025-09-21,488.97,food,Blinkit Groceries,False
+2025-09-22,187.45,transport,Uber,False
+2025-09-23,425.4,food,Blinkit Groceries,False
+2025-09-23,2056.04,health,Practo Consultation,True
+2025-09-23,149.27,transport,Rapido,False
+2025-09-24,507.14,health,Practo Consultation,True
+2025-09-24,224.67,health,PharmEasy,True
+2025-09-24,697.84,health,Apollo Pharmacy,True
+2025-09-24,777.93,health,Practo Consultation,True
+2025-09-24,242.33,food,Subway,False
+2025-09-25,1560.64,shopping,Flipkart,False
+2025-09-25,109.37,transport,IRCTC,False
+2025-09-26,467.01,food,McDonald's,False
+2025-09-27,332.35,food,Zomato,False
+2025-09-27,839.6,shopping,Myntra,False
+2025-09-28,311.43,food,Cafe Coffee Day,False
+2025-09-28,603.23,entertainment,Netflix,False
+2025-09-29,282.35,food,Zomato,False
+2025-09-30,251.33,food,Cafe Coffee Day,False
+2025-10-01,14764.48,rent,Landlord UPI,False
+2025-10-01,698.61,bills,Gas Connection,False
+2025-10-01,379.24,food,Local Restaurant,False
+2025-10-01,164.7,transport,Metro Card Recharge,False
+2025-10-02,341.53,shopping,IKEA,False
+2025-10-02,377.85,food,Zomato,False
+2025-10-03,446.64,entertainment,Steam Games,False
+2025-10-03,106.89,transport,IRCTC,False
+2025-10-03,181.1,food,McDonald's,False
+2025-10-04,387.31,food,Subway,False
+2025-10-05,527.04,food,Local Restaurant,False
+2025-10-06,452.92,food,Dominos,False
+2025-10-07,330.81,food,McDonald's,False
+2025-10-07,148.86,transport,Uber,False
+2025-10-08,229.7,food,Subway,False
+2025-10-08,148.89,transport,IRCTC,False
+2025-10-09,5676.02,shopping,Reliance Digital,True
+2025-10-09,132.68,transport,IRCTC,False
+2025-10-09,864.54,bills,Water Board,False
+2025-10-10,250.73,food,McDonald's,False
+2025-10-10,629.84,entertainment,BookMyShow,False
+2025-10-11,533.93,food,Zomato,False
+2025-10-11,174.1,transport,Uber,False
+2025-10-11,1412.99,shopping,Reliance Digital,False
+2025-10-12,399.69,entertainment,Spotify,False
+2025-10-12,432.82,food,Dominos,False
+2025-10-13,376.89,food,Cafe Coffee Day,False
+2025-10-13,150.76,transport,Metro Card Recharge,False
+2025-10-14,361.72,food,Blinkit Groceries,False
+2025-10-14,368.1,health,Apollo Pharmacy,False
+2025-10-15,1335.09,food,Local Restaurant,True
+2025-10-16,179.88,transport,Petrol Pump,False
+2025-10-16,352.94,food,Zomato,False
+2025-10-18,2267.42,shopping,Amazon,False
+2025-10-18,279.19,transport,Rapido,False
+2025-10-18,524.14,food,BigBasket,False
+2025-10-19,2197.86,shopping,Croma,False
+2025-10-19,257.92,food,McDonald's,False
+2025-10-20,372.0,food,Swiggy,False
+2025-10-21,612.78,food,Swiggy,False
+2025-10-21,101.5,transport,IRCTC,False
+2025-10-22,249.23,food,Dominos,False
+2025-10-23,278.07,food,Zomato,False
+2025-10-23,10.0,shopping,Nykaa,False
+2025-10-23,118.45,transport,Ola,False
+2025-10-24,258.9,food,Swiggy,False
+2025-10-24,159.02,transport,Petrol Pump,False
+2025-10-25,8157.12,education,Overseas Purchase,True
+2025-10-25,391.01,food,BigBasket,False
+2025-10-26,207.03,transport,Rapido,False
+2025-10-26,575.14,food,Local Restaurant,False
+2025-10-27,280.77,food,Blinkit Groceries,False
+2025-10-27,96.1,transport,IRCTC,False
+2025-10-27,622.98,entertainment,YouTube Premium,False
+2025-10-28,191.57,food,McDonald's,False
+2025-10-29,569.78,food,Cafe Coffee Day,False
+2025-10-29,220.77,transport,Petrol Pump,False
+2025-10-30,121.85,transport,Petrol Pump,False
+2025-10-31,2583.1,shopping,Myntra,False
+2025-10-31,144.42,food,Dominos,False
+2025-10-31,143.13,transport,Metro Card Recharge,False
+2025-11-01,684.18,food,Zomato,False
+2025-11-01,14700.31,rent,Landlord UPI,False
+2025-11-01,54.33,transport,IRCTC,False
+2025-11-02,152.82,transport,IRCTC,False
+2025-11-02,1549.93,education,Coaching Center,False
+2025-11-02,389.51,food,Subway,False
+2025-11-03,2924.03,education,Exam Fee,True
+2025-11-03,1815.1,education,Book Store,True
+2025-11-03,1477.28,education,Coursera,True
+2025-11-03,3049.01,education,Exam Fee,True
+2025-11-03,585.52,food,McDonald's,False
+2025-11-04,256.91,food,Zomato,False
+2025-11-04,557.29,health,PharmEasy,False
+2025-11-05,483.67,food,Dominos,False
+2025-11-06,574.16,food,Blinkit Groceries,False
+2025-11-06,192.7,transport,Rapido,False
+2025-11-07,273.51,food,Cafe Coffee Day,False
+2025-11-07,493.18,bills,Jio Recharge,False
+2025-11-08,687.71,food,Cafe Coffee Day,False
+2025-11-09,482.08,food,McDonald's,False
+2025-11-10,243.07,transport,Rapido,False
+2025-11-10,345.11,food,Zomato,False
+2025-11-11,462.79,food,Dominos,False
+2025-11-11,3314.15,shopping,Nykaa,False
+2025-11-11,154.05,transport,Ola,False
+2025-11-12,680.66,food,Subway,False
+2025-11-12,255.32,transport,Metro Card Recharge,False
+2025-11-12,525.31,health,PharmEasy,False
+2025-11-13,208.29,transport,Rapido,False
+2025-11-14,188.72,transport,Ola,False
+2025-11-15,718.83,food,Subway,False
+2025-11-15,359.49,entertainment,Steam Games,False
+2025-11-16,846.28,entertainment,BookMyShow,False
+2025-11-16,604.33,food,Subway,False
+2025-11-17,168.66,food,Local Restaurant,False
+2025-11-17,79.0,transport,Rapido,False
+2025-11-18,135.25,food,Swiggy,False
+2025-11-18,133.84,transport,Petrol Pump,False
+2025-11-18,943.51,bills,Gas Connection,False
+2025-11-19,814.82,bills,Gas Connection,False
+2025-11-19,653.14,food,BigBasket,False
+2025-11-20,694.47,food,McDonald's,False
+2025-11-21,235.56,food,Dominos,False
+2025-11-21,47.8,transport,Metro Card Recharge,False
+2025-11-21,788.89,bills,Electricity Board,False
+2025-11-22,485.17,food,Dominos,False
+2025-11-22,1702.53,shopping,Nykaa,False
+2025-11-22,25.95,transport,Ola,False
+2025-11-23,471.75,food,BigBasket,False
+2025-11-24,243.9,food,Local Restaurant,False
+2025-11-24,2469.66,shopping,Amazon,False
+2025-11-24,651.26,health,Gym Membership,True
+2025-11-24,822.98,health,Gym Membership,True
+2025-11-24,86.95,health,Apollo Pharmacy,True
+2025-11-24,195.54,health,Practo Consultation,True
+2025-11-25,536.16,food,McDonald's,False
+2025-11-27,294.12,food,McDonald's,False
+2025-11-27,119.17,transport,Metro Card Recharge,False
+2025-11-28,4401.91,bills,Broadband,True
+2025-11-28,935.3,entertainment,Steam Games,False
+2025-11-28,146.24,transport,Ola,False
+2025-11-28,258.77,food,McDonald's,False
+2025-11-29,277.81,food,Subway,False
+2025-11-29,935.53,transport,Petrol Pump,True
+2025-11-29,180.24,transport,Petrol Pump,False
+2025-11-30,381.44,entertainment,Spotify,False
+2025-11-30,370.13,food,Blinkit Groceries,False
+2025-12-01,14401.06,rent,Landlord UPI,False
+2025-12-01,3032.68,education,Overseas Purchase,True
+2025-12-01,376.81,food,Swiggy,False
+2025-12-01,87.89,transport,IRCTC,False
+2025-12-01,689.27,bills,Jio Recharge,False
+2025-12-02,733.22,food,McDonald's,False
+2025-12-02,1973.41,shopping,Nykaa,False
+2025-12-02,660.05,bills,Gas Connection,False
+2025-12-02,664.19,health,Gym Membership,False
+2025-12-03,399.12,food,BigBasket,False
+2025-12-04,374.46,food,BigBasket,False
+2025-12-04,186.85,transport,Metro Card Recharge,False
+2025-12-05,445.91,entertainment,Steam Games,False
+2025-12-05,524.67,food,Zomato,False
+2025-12-06,133.5,transport,Uber,False
+2025-12-06,315.96,food,Subway,False
+2025-12-06,3693.1,health,1mg,True
+2025-12-07,789.83,entertainment,PVR Cinemas,True
+2025-12-07,229.73,entertainment,Steam Games,True
+2025-12-07,653.98,entertainment,Steam Games,True
+2025-12-07,409.76,entertainment,Spotify,True
+2025-12-07,323.05,shopping,Croma,False
+2025-12-07,93.69,food,Cafe Coffee Day,False
+2025-12-07,1093.49,health,1mg,False
+2025-12-07,1160.42,entertainment,BookMyShow,False
+2025-12-08,135.06,transport,Uber,False
+2025-12-09,168.68,transport,IRCTC,False
+2025-12-09,529.08,food,Subway,False
+2025-12-10,972.43,food,McDonald's,False
+2025-12-11,217.17,transport,Petrol Pump,False
+2025-12-12,430.22,food,Local Restaurant,False
+2025-12-12,92.67,transport,Ola,False
+2025-12-13,177.27,food,Cafe Coffee Day,False
+2025-12-13,677.18,entertainment,Steam Games,False
+2025-12-14,1042.29,entertainment,Unknown Store,True
+2025-12-14,176.81,entertainment,Netflix,False
+2025-12-14,312.69,food,Zomato,False
+2025-12-15,111.21,transport,IRCTC,False
+2025-12-15,273.32,entertainment,PVR Cinemas,False
+2025-12-16,657.38,food,Zomato,False
+2025-12-17,502.3,food,Subway,False
+2025-12-18,149.52,transport,Rapido,False
+2025-12-19,630.87,food,Blinkit Groceries,False
+2025-12-19,1584.17,food,New App Payment,True
+2025-12-20,416.75,food,BigBasket,False
+2025-12-20,1078.83,shopping,Amazon,False
+2025-12-21,182.33,transport,Rapido,False
+2025-12-21,716.95,food,Subway,False
+2025-12-22,315.11,food,Blinkit Groceries,False
+2025-12-22,138.58,transport,IRCTC,False
+2025-12-22,390.87,entertainment,YouTube Premium,False
+2025-12-23,207.16,food,Local Restaurant,False
+2025-12-23,205.57,transport,IRCTC,False
+2025-12-24,1140.18,entertainment,YouTube Premium,False
+2025-12-25,224.75,food,Subway,False
+2025-12-26,1353.85,shopping,Myntra,False
+2025-12-26,574.63,food,Zomato,False
+2025-12-26,120.77,transport,Rapido,False
+2025-12-27,900.53,shopping,Flipkart,False
+2025-12-27,152.91,transport,Rapido,False
+2025-12-27,365.1,food,McDonald's,False
+2025-12-28,288.41,food,Dominos,False
+2025-12-28,1472.94,entertainment,Foreign Website,True
+2025-12-29,466.09,food,Local Restaurant,False
+2025-12-29,146.99,transport,Uber,False
+2025-12-30,363.27,food,BigBasket,False
+2025-12-30,115.39,transport,IRCTC,False
+2025-12-30,927.03,shopping,Nykaa,False
+2025-12-31,562.31,food,McDonald's,False
+2025-12-31,180.06,transport,Ola,False
+2026-01-01,232.69,food,Dominos,False
+2026-01-01,155.96,transport,Uber,False
+2026-01-01,15375.69,rent,Landlord UPI,False
+2026-01-02,110.24,transport,Metro Card Recharge,False
+2026-01-02,1934.69,shopping,Myntra,False
+2026-01-02,149.67,food,Subway,False
+2026-01-03,418.47,food,Swiggy,False
+2026-01-03,104.2,transport,Metro Card Recharge,False
+2026-01-04,614.43,health,1mg,False
+2026-01-04,133.41,food,Blinkit Groceries,False
+2026-01-04,52.35,transport,Uber,False
+2026-01-05,381.17,food,Blinkit Groceries,False
+2026-01-06,241.48,food,McDonald's,False
+2026-01-07,188.32,transport,Uber,False
+2026-01-08,50.31,transport,IRCTC,False
+2026-01-09,342.07,food,Dominos,False
+2026-01-10,978.53,shopping,Croma,False
+2026-01-10,204.68,food,Cafe Coffee Day,False
+2026-01-11,355.69,food,Subway,False
+2026-01-11,284.9,entertainment,Spotify,False
+2026-01-13,303.85,food,Zomato,False
+2026-01-13,938.7,entertainment,Steam Games,True
+2026-01-13,-20.48,entertainment,BookMyShow,True
+2026-01-13,924.11,entertainment,BookMyShow,True
+2026-01-13,552.75,entertainment,YouTube Premium,True
+2026-01-13,475.82,entertainment,Netflix,True
+2026-01-14,470.76,food,Zomato,False
+2026-01-14,115.39,transport,IRCTC,False
+2026-01-15,200.14,transport,Rapido,False
+2026-01-16,214.44,food,McDonald's,False
+2026-01-16,905.96,bills,Broadband,False
+2026-01-17,522.99,food,Blinkit Groceries,False
+2026-01-18,53.4,food,Cafe Coffee Day,False
+2026-01-18,184.62,transport,Rapido,False
+2026-01-18,862.48,shopping,Decathlon,False
+2026-01-19,137.82,transport,Uber,False
+2026-01-19,592.79,entertainment,PVR Cinemas,False
+2026-01-20,277.52,food,Blinkit Groceries,False
+2026-01-20,1569.27,shopping,Decathlon,False
+2026-01-21,331.32,food,Zomato,False
+2026-01-21,2434.23,shopping,Decathlon,False
+2026-01-21,4468.73,shopping,Flipkart,True
+2026-01-22,1703.54,shopping,Amazon,False
+2026-01-23,170.26,transport,Ola,False
+2026-01-23,397.03,entertainment,Netflix,False
+2026-01-24,291.49,food,McDonald's,False
+2026-01-24,124.05,transport,IRCTC,False
+2026-01-25,397.33,food,Swiggy,False
+2026-01-26,299.48,food,Swiggy,False
+2026-01-27,384.77,food,Swiggy,False
+2026-01-28,599.05,food,Blinkit Groceries,False
+2026-01-28,974.22,bills,Jio Recharge,False
+2026-01-28,418.49,entertainment,Spotify,False
+2026-01-28,960.36,health,Apollo Pharmacy,False
+2026-01-29,27.71,transport,Metro Card Recharge,False
+2026-01-29,301.03,food,Cafe Coffee Day,False
+2026-01-30,37.75,transport,Ola,False
+2026-01-30,229.03,food,Zomato,False
+2026-01-31,307.82,food,Zomato,False
+2026-02-01,2326.93,education,Exam Fee,False
+2026-02-01,919.11,entertainment,YouTube Premium,False
+2026-02-01,352.21,food,Swiggy,False
+2026-02-01,14890.45,rent,Landlord UPI,False
+2026-02-02,12605.3,education,Coursera,True
+2026-02-02,449.53,food,Cafe Coffee Day,False
+2026-02-02,10.0,shopping,Myntra,False
+2026-02-03,196.25,transport,IRCTC,False
+2026-02-03,378.27,food,Subway,False
+2026-02-04,172.57,food,Dominos,False
+2026-02-04,218.63,transport,Uber,False
+2026-02-05,390.62,food,Swiggy,False
+2026-02-05,125.08,transport,Metro Card Recharge,False
+2026-02-07,425.93,food,McDonald's,False
+2026-02-07,3316.55,shopping,Amazon,False
+2026-02-07,160.91,transport,Petrol Pump,False
+2026-02-08,379.79,food,Cafe Coffee Day,False
+2026-02-08,708.13,bills,Airtel,False
+2026-02-09,248.02,food,McDonald's,False
+2026-02-09,199.82,transport,Ola,False
+2026-02-09,1633.49,entertainment,PVR Cinemas,True
+2026-02-10,815.13,shopping,Decathlon,False
+2026-02-10,456.7,health,Practo Consultation,False
+2026-02-10,517.89,entertainment,BookMyShow,False
+2026-02-11,178.74,transport,Ola,False
+2026-02-12,390.04,food,Swiggy,False
+2026-02-13,474.5,food,Zomato,False
+2026-02-14,1284.1,shopping,Decathlon,False
+2026-02-14,288.8,food,Cafe Coffee Day,False
+2026-02-15,172.64,transport,Ola,False
+2026-02-15,1144.57,shopping,Flipkart,False
+2026-02-15,232.55,food,Local Restaurant,False
+2026-02-16,195.42,transport,Uber,False
+2026-02-17,239.34,food,Local Restaurant,False
+2026-02-17,202.18,transport,Uber,False
+2026-02-18,512.68,food,Dominos,False
+2026-02-18,1830.75,shopping,IKEA,False
+2026-02-19,3001.44,shopping,Amazon,False
+2026-02-19,704.27,health,1mg,True
+2026-02-19,544.8,health,Hospital,True
+2026-02-19,605.53,health,PharmEasy,True
+2026-02-19,306.55,entertainment,PVR Cinemas,False
+2026-02-20,43.28,transport,Uber,False
+2026-02-20,200.64,food,Cafe Coffee Day,False
+2026-02-21,146.66,transport,Petrol Pump,False
+2026-02-21,2023.49,shopping,Nykaa,False
+2026-02-21,529.53,food,McDonald's,False
+2026-02-22,532.31,entertainment,Steam Games,False
+2026-02-22,296.75,transport,Metro Card Recharge,False
+2026-02-22,599.61,shopping,Myntra,False
+2026-02-22,383.6,food,McDonald's,False
+2026-02-23,363.13,food,BigBasket,False
+2026-02-23,193.55,transport,Metro Card Recharge,False
+2026-02-24,407.72,food,BigBasket,False
+2026-02-25,641.91,bills,Gas Connection,False
+2026-02-25,163.43,transport,Ola,False
+2026-02-26,406.58,food,Blinkit Groceries,False
+2026-02-26,5033.09,shopping,Croma,True
+2026-02-27,575.84,food,Swiggy,False
+2026-02-28,2774.55,shopping,Decathlon,False
+2026-02-28,446.64,health,Practo Consultation,False
+2026-02-28,511.45,food,Dominos,False
+2026-03-01,15547.1,rent,Landlord UPI,False
+2026-03-01,513.93,entertainment,Netflix,False
+2026-03-01,142.45,transport,Metro Card Recharge,False
+2026-03-01,231.25,food,Dominos,False
+2026-03-02,11981.02,shopping,Croma,True
+2026-03-02,2723.64,shopping,Reliance Digital,False
+2026-03-02,146.9,food,Blinkit Groceries,False
+2026-03-03,331.04,food,Dominos,False
+2026-03-04,298.77,food,Subway,False
+2026-03-04,89.27,transport,Rapido,False
+2026-03-05,50.71,transport,Petrol Pump,False
+2026-03-06,622.0,health,Practo Consultation,False
+2026-03-06,448.78,food,Dominos,False
+2026-03-07,463.94,shopping,Decathlon,False
+2026-03-07,195.2,food,Swiggy,False
+2026-03-08,309.71,food,Zomato,False
+2026-03-08,2835.22,shopping,Decathlon,False
+2026-03-08,134.42,transport,Uber,False
+2026-03-09,169.62,food,Local Restaurant,False
+2026-03-09,135.26,transport,Rapido,False
+2026-03-10,317.27,food,Dominos,False
+2026-03-10,10.0,transport,Metro Card Recharge,False
+2026-03-10,1965.36,health,Foreign Website,True
+2026-03-11,343.48,food,Local Restaurant,False
+2026-03-11,1315.25,shopping,Flipkart,False
+2026-03-11,939.24,bills,Jio Recharge,False
+2026-03-12,571.87,food,Subway,False
+2026-03-12,2401.25,shopping,Flipkart,False
+2026-03-12,133.87,transport,Uber,False
+2026-03-13,2146.7,food,Local Restaurant,True
+2026-03-13,304.4,transport,Uber,False
+2026-03-13,179.89,entertainment,Steam Games,True
+2026-03-13,323.91,entertainment,PVR Cinemas,True
+2026-03-13,110.84,entertainment,Netflix,True
+2026-03-13,147.88,entertainment,Steam Games,True
+2026-03-13,217.22,food,Dominos,False
+2026-03-13,651.5,entertainment,Netflix,True
+2026-03-14,357.11,food,BigBasket,False
+2026-03-14,1511.14,shopping,Croma,False
+2026-03-14,148.55,transport,Uber,False
+2026-03-14,839.62,bills,Gas Connection,False
+2026-03-15,1654.43,entertainment,Spotify,True
+2026-03-15,332.68,food,Zomato,False
+2026-03-15,117.19,transport,Uber,False
+2026-03-15,1041.07,shopping,Nykaa,False
+2026-03-16,346.07,food,Subway,False
+2026-03-17,284.79,food,Dominos,False
+2026-03-17,107.23,transport,Metro Card Recharge,False
+2026-03-18,362.77,food,Zomato,False
+2026-03-18,1296.02,shopping,Decathlon,False
+2026-03-19,10.0,transport,Metro Card Recharge,False
+2026-03-19,530.48,food,BigBasket,False
+2026-03-20,2373.21,shopping,Myntra,False
+2026-03-20,224.77,transport,Metro Card Recharge,False
+2026-03-21,101.19,food,Subway,False
+2026-03-21,1225.85,shopping,IKEA,False
+2026-03-21,127.71,transport,IRCTC,False
+2026-03-22,181.1,food,Zomato,False
+2026-03-22,1312.09,entertainment,Netflix,True
+2026-03-23,103.33,transport,Metro Card Recharge,False
+2026-03-24,255.14,transport,Uber,False
+2026-03-24,611.54,shopping,Flipkart,False
+2026-03-25,226.29,transport,Ola,False
+2026-03-25,462.28,food,Blinkit Groceries,False
+2026-03-26,436.6,food,McDonald's,False
+2026-03-26,82.26,transport,Metro Card Recharge,False
+2026-03-26,442.64,health,PharmEasy,False
+2026-03-28,408.72,food,McDonald's,False
+2026-03-28,522.3,shopping,IKEA,False
+2026-03-29,435.56,food,BigBasket,False
+2026-03-29,439.92,entertainment,BookMyShow,False
+2026-03-30,127.51,transport,Ola,False
+2026-03-31,176.66,transport,Metro Card Recharge,False
+2026-03-31,435.32,food,McDonald's,False
