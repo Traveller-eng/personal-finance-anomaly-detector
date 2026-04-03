@@ -38,6 +38,7 @@ from src.anomaly_detector import AnomalyDetector
 from src.explainer import explain_anomalies
 from src.health_scorer import HealthScorer
 from src.insights import InsightGenerator
+from src.database import add_expected_transaction, set_budget, get_budgets
 
 # ─── Page Configuration ───────────────────────────────────────────────────────
 st.set_page_config(
@@ -216,13 +217,18 @@ def render_sidebar() -> tuple:
         )
 
         uploaded_file = None
+        parser_type = "Generic (Default)"
         if data_source == "Upload Your CSV":
             uploaded_file = st.file_uploader(
                 "Upload CSV",
                 type=["csv"],
                 help="Required columns: date, amount, category, merchant",
             )
-            st.caption("Required columns: `date`, `amount`, `category`, `merchant`")
+            parser_type = st.selectbox(
+                "Bank Format",
+                ["Generic (Default)", "Mint", "YNAB", "Chase"],
+            )
+            st.caption("Required columns for Generic: `date`, `amount`, `category`, `merchant`")
 
         st.divider()
 
@@ -248,6 +254,17 @@ def render_sidebar() -> tuple:
         )
         contamination = contamination_pct / 100.0
 
+        # ── Budget Configuration
+        st.markdown("### 🎯 Goals & Budgets")
+        with st.expander("Set Monthly Budgets"):
+            with st.form("budget_form"):
+                cat_input = st.text_input("Category (e.g. Food, Transport)")
+                limit_input = st.number_input("Monthly Limit", min_value=0.0, step=100.0)
+                if st.form_submit_button("Save Budget"):
+                    if cat_input:
+                        set_budget(cat_input, limit_input)
+                        st.success(f"Saved {cat_input} limit: {currency_symbol}{limit_input:,.0f}")
+                        
         st.divider()
 
         # ── Navigation
@@ -262,11 +279,11 @@ def render_sidebar() -> tuple:
         st.divider()
         st.caption("Built with Isolation Forest + Streamlit")
 
-    return page, uploaded_file, currency_symbol, contamination
+    return page, uploaded_file, currency_symbol, contamination, parser_type
 
 
 # ─── Data Loading ─────────────────────────────────────────────────────────────
-def load_data(uploaded_file, currency_symbol, contamination):
+def load_data(uploaded_file, currency_symbol, contamination, parser_type):
     """Load data and run the full pipeline."""
     sample_path = os.path.join(os.path.dirname(__file__), "data", "transactions.csv")
 
@@ -279,12 +296,12 @@ def load_data(uploaded_file, currency_symbol, contamination):
 
     # Load data
     if uploaded_file is not None:
-        df_raw = pd.read_csv(uploaded_file)
+        df_raw = load_from_dataframe(pd.read_csv(uploaded_file), parser_type=parser_type)
     else:
         if not os.path.exists(sample_path):
             st.error("Sample data not found. Please generate it or upload a CSV.")
             st.stop()
-        df_raw = pd.read_csv(sample_path)
+        df_raw = load_csv(sample_path, parser_type="Generic (Default)")
 
     return df_raw
 
@@ -642,14 +659,54 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str):
                     st.info("Multi-factor anomaly: combination of amount, category, and timing.")
             with exp_col2:
                 st.metric("Amount", fmt(row["amount"], currency))
-                st.metric("Anomaly Score", f"{row['anomaly_score']:.3f}")
                 st.metric("Severity", sev.upper())
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("Mark as Expected", key=f"btn_exp_{row.name}"):
+                    add_expected_transaction(row['merchant'].lower(), row['amount'])
+                    st.toast(f"Rule added to ignore {row['merchant']} around {currency}{row['amount']:,.0f}!")
+                    st.rerun()
 
 
 # ─── PAGE 3: Trends ───────────────────────────────────────────────────────────
 def page_trends(df: pd.DataFrame, currency: str):
     st.markdown("## 📈 Spending Trends")
     st.divider()
+
+    # ── Month-over-Month Delta Table
+    st.markdown('<p class="section-header">🗓️ Month-over-Month Delta</p>', unsafe_allow_html=True)
+    try:
+        df_dates = df.copy()
+        df_dates["date"] = pd.to_datetime(df_dates["date"])
+        current_month = df_dates['date'].max().to_period('M')
+        last_month = current_month - 1
+        
+        curr_df = df_dates[df_dates['date'].dt.to_period('M') == current_month]
+        last_df = df_dates[df_dates['date'].dt.to_period('M') == last_month]
+        
+        curr_cat = curr_df.groupby('category')['amount'].sum()
+        last_cat = last_df.groupby('category')['amount'].sum()
+        
+        delta_df = pd.DataFrame({"This Month": curr_cat, "Last Month": last_cat}).fillna(0)
+        delta_df["Delta (%)"] = np.where(delta_df["Last Month"] == 0, 0, 
+                                         (delta_df["This Month"] - delta_df["Last Month"]) / delta_df["Last Month"] * 100)
+        
+        def format_delta(val, amount_diff):
+            if val == 0 and amount_diff == 0: return "-"
+            icon = "▲" if val > 0 else "▼"
+            color = "#FF5252" if val > 0 else "#4CAF50" # Red if spend more, Green if spend less
+            return f'<span style="color: {color};">{icon} {abs(val):.0f}%</span>'
+
+        display_df = delta_df.copy()
+        display_df["Category"] = display_df.index.str.title()
+        amount_diffs = display_df["This Month"] - display_df["Last Month"]
+        display_df["Δ"] = [format_delta(v, d) for v, d in zip(display_df["Delta (%)"], amount_diffs)]
+        display_df["Last Month"] = display_df["Last Month"].apply(lambda x: fmt(x, currency))
+        display_df["This Month"] = display_df["This Month"].apply(lambda x: fmt(x, currency))
+        
+        st.write(display_df[["Category", "Last Month", "This Month", "Δ"]].to_html(escape=False, index=False), unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+    except Exception as e:
+        st.warning("Insufficient data for Month-over-Month comparison.")
 
     # ── Time granularity selector
     granularity = st.radio(
@@ -950,10 +1007,10 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
 
 # ─── Main App ─────────────────────────────────────────────────────────────────
 def main():
-    page, uploaded_file, currency_symbol, contamination = render_sidebar()
+    page, uploaded_file, currency_symbol, contamination, parser_type = render_sidebar()
 
     # Load data
-    df_raw = load_data(uploaded_file, currency_symbol, contamination)
+    df_raw = load_data(uploaded_file, currency_symbol, contamination, parser_type)
 
     # Run pipeline (cached)
     with st.spinner("🧠 Running anomaly detection pipeline..."):

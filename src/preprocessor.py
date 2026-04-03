@@ -53,6 +53,9 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # Step 7: Sort by date
     df = df.sort_values("date").reset_index(drop=True)
 
+    # Step 8: Remove exact duplicates
+    df = df.drop_duplicates()
+
     return df
 
 

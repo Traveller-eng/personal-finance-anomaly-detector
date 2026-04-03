@@ -25,6 +25,10 @@ WHY ACTIONABLE INSIGHTS MATTER:
 import pandas as pd
 import numpy as np
 from src.user_profiler import UserProfile
+from src.recurring import detect_recurring
+from src.database import get_budgets
+import datetime
+import calendar
 
 
 class InsightGenerator:
@@ -46,6 +50,8 @@ class InsightGenerator:
         self.insights = []
 
         # Generate all insights
+        self._check_budget_burn()
+        self._check_recurring()
         self._check_category_overspending()
         self._check_weekend_spending()
         self._check_spending_trend()
@@ -57,6 +63,50 @@ class InsightGenerator:
         # Sort by priority
         priority_order = {"high": 0, "medium": 1, "low": 2}
         self.insights.sort(key=lambda x: priority_order.get(x["priority"], 3))
+
+    def _check_budget_burn(self):
+        """Generates dynamic burn rate alerts based on SQLite budgets."""
+        budgets = get_budgets()
+        if not budgets:
+            return
+
+        current_date_series = self.df['date'].max()
+        if pd.isna(current_date_series): return
+        current_date = pd.to_datetime(current_date_series)
+        
+        current_month_df = self.df[(self.df['date'].dt.year == current_date.year) & 
+                                   (self.df['date'].dt.month == current_date.month)]
+        
+        _, days_in_month = calendar.monthrange(current_date.year, current_date.month)
+        days_left = days_in_month - current_date.day
+
+        for cat, limit in budgets.items():
+            cat_df = current_month_df[current_month_df['category'].str.lower() == cat]
+            spent = cat_df['amount'].sum()
+            if limit > 0:
+                burn_pct = (spent / limit) * 100
+                if burn_pct >= 75:
+                    self.insights.append({
+                        "type": "warning",
+                        "priority": "high" if burn_pct > 100 else "medium",
+                        "category": cat.title(),
+                        "title": f"Budget Alert: {cat.title()}",
+                        "message": f"You've spent {burn_pct:.0f}% of your {self.currency}{limit:,.0f} {cat.title()} budget with {days_left} days left.",
+                        "suggestion": "Review recent expenses to prevent overspending this month."
+                    })
+
+    def _check_recurring(self):
+        """Identifies recurring subscription overhead."""
+        recurring_data = detect_recurring(self.df)
+        if recurring_data["count"] > 0:
+            self.insights.append({
+                "type": "info",
+                "priority": "high",
+                "category": "overall",
+                "title": "Recurring Overhead Detected",
+                "message": f"You have {recurring_data['count']} recurring charges totaling {self.currency}{recurring_data['total_monthly']:,.0f}/month you may have forgotten.",
+                "suggestion": "Review your subscriptions to lower your fixed monthly costs."
+            })
 
     def _check_category_overspending(self):
         """

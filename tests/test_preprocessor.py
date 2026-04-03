@@ -52,6 +52,16 @@ class TestDateParsing:
         result = clean_data(df)
         assert len(result) == 2  # One invalid row dropped
 
+    def test_nulls_duplicates_garbage(self):
+        df = make_raw_df(
+            date=["2025-04-01", "2025-04-02", "2025-04-02", None],
+            amount=[350.0, 1200.0, 1200.0, 100.0],
+            category=["food", "shopping", "shopping", "food"],
+            merchant=["Swiggy", "Amazon", "Amazon", "Swiggy"],
+        )
+        result = clean_data(df)
+        assert len(result) == 2  # One dupe dropped, one null date dropped
+
 
 class TestAmountCleaning:
     def test_numeric_passthrough(self):

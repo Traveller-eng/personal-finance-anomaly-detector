@@ -1,0 +1,96 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lenovo\OneDrive\Desktop\Personal Finance Anomaly Detector
+plugins: anyio-4.10.0
+collected 3 items
+
+tests\test_insights.py .FF                                               [100%]
+
+================================== FAILURES ===================================
+_______________________ test_insights_overspend_trigger _______________________
+
+    def test_insights_overspend_trigger():
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=7),
+            "amount": [1000] * 7, # 7000 total weekly
+            "category": ["Food"] * 7,
+            "merchant": ["Acme"] * 7
+        })
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"weekend_multiplier": 1.0, "monthly_spend": {}}
+        # Expectation: 1000 weekly, Actual: 7000 weekly. Should definitely trigger overspend
+        profile_mock.category_profiles = {"Food": {"mean": 100, "avg_txns_per_week": 10, "std": 10}}
+        profile_mock.merchant_profile = {}
+        profile_mock.velocity_profile = {}
+    
+>       generator = InsightGenerator(df, profile_mock)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_insights.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\insights.py:61: in __init__
+    self._check_positive_habits()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.insights.InsightGenerator object at 0x000001A876256AD0>
+
+    def _check_positive_habits(self):
+        """
+        Highlight positive spending behaviors ù positive reinforcement matters!
+        """
+        # Find most consistent category
+        min_cv = float("inf")
+        most_consistent_cat = None
+    
+        for category, prof in self.profile.category_profiles.items():
+>           if prof["mean"] > 0 and prof["transaction_count"] > 5:
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'transaction_count'
+
+src\insights.py:352: KeyError
+_______________ test_insights_no_false_positives_on_normal_data _______________
+
+    def test_insights_no_false_positives_on_normal_data():
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=7),
+            "amount": [10] * 7,
+            "category": ["Food"] * 7,
+            "merchant": ["Acme"] * 7
+        })
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"weekend_multiplier": 1.0, "monthly_spend": {}}
+        profile_mock.category_profiles = {"Food": {"mean": 10, "avg_txns_per_week": 7, "std": 1}}
+        profile_mock.merchant_profile = {}
+        profile_mock.velocity_profile = {}
+    
+>       generator = InsightGenerator(df, profile_mock)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_insights.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\insights.py:61: in __init__
+    self._check_positive_habits()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.insights.InsightGenerator object at 0x000001A8764B0410>
+
+    def _check_positive_habits(self):
+        """
+        Highlight positive spending behaviors ù positive reinforcement matters!
+        """
+        # Find most consistent category
+        min_cv = float("inf")
+        most_consistent_cat = None
+    
+        for category, prof in self.profile.category_profiles.items():
+>           if prof["mean"] > 0 and prof["transaction_count"] > 5:
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'transaction_count'
+
+src\insights.py:352: KeyError
+=========================== short test summary info ===========================
+FAILED tests/test_insights.py::test_insights_overspend_trigger - KeyError: 't...
+FAILED tests/test_insights.py::test_insights_no_false_positives_on_normal_data
+========================= 2 failed, 1 passed in 1.29s =========================

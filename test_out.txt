@@ -1,0 +1,250 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lenovo\OneDrive\Desktop\Personal Finance Anomaly Detector
+plugins: anyio-4.10.0
+collected 37 items
+
+tests\test_anomaly_detector.py ........                                  [ 21%]
+tests\test_explainer.py ........                                         [ 43%]
+tests\test_health_scorer.py FFF                                          [ 51%]
+tests\test_insights.py FFF                                               [ 59%]
+tests\test_preprocessor.py ...............                               [100%]
+
+================================== FAILURES ===================================
+_________________________ test_health_scorer_empty_df _________________________
+
+    def test_health_scorer_empty_df():
+        """Test health scoring logic when user has no transactions."""
+        df = pd.DataFrame(columns=["date", "amount", "category", "merchant", "is_anomaly"])
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"monthly_spend": {}}
+        profile_mock.categorical_profile = {}
+    
+        scorer = HealthScorer(df, profile_mock)
+>       score = scorer.compute_score()
+                ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'HealthScorer' object has no attribute 'compute_score'
+
+tests\test_health_scorer.py:15: AttributeError
+______________________ test_health_scorer_all_anomalies _______________________
+
+    def test_health_scorer_all_anomalies():
+        """Test response to a wildly abnormal user."""
+        # 10 anomalies, 100% anomaly rate
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=10),
+            "amount": [5000] * 10,
+            "is_anomaly": [1] * 10,
+            "category": ["Emergency"] * 10
+        })
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"monthly_spend": {"2026-01": 50000}}
+        profile_mock.categorical_profile = {}
+    
+        scorer = HealthScorer(df, profile_mock)
+>       score = scorer.compute_score()
+                ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'HealthScorer' object has no attribute 'compute_score'
+
+tests\test_health_scorer.py:35: AttributeError
+_______________________ test_health_scorer_perfect_user _______________________
+
+    def test_health_scorer_perfect_user():
+        """Test response to an exclusively non-anomalous standard user."""
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=30),
+            "amount": [100] * 30,
+            "is_anomaly": [0] * 30,
+            "category": ["Food"] * 30
+        })
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"monthly_spend": {"2026-01": 3000}}
+        profile_mock.categorical_profile = {}
+    
+        scorer = HealthScorer(df, profile_mock)
+>       score = scorer.compute_score()
+                ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'HealthScorer' object has no attribute 'compute_score'
+
+tests\test_health_scorer.py:53: AttributeError
+___________________ test_insights_generation_weekend_spike ____________________
+
+    def test_insights_generation_weekend_spike():
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=10),
+            "amount": [100] * 10,
+            "category": ["Food"] * 10,
+            "merchant": ["Acme"] * 10
+        })
+    
+        profile_mock = MagicMock()
+        # Trigger a 4x weekend multiplier to force insight generator to flag it
+        profile_mock.temporal_profile = {"weekday_avg": 50, "weekend_avg": 200, "weekend_multiplier": 4.0, "monthly_spend": {}}
+        profile_mock.categorical_profile = {}
+        profile_mock.merchant_profile = {}
+    
+>       generator = InsightGenerator(df, profile_mock)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_insights.py:20: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\insights.py:59: in __init__
+    self._check_budget_forecast()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.insights.InsightGenerator object at 0x0000023A8F3B96A0>
+
+    def _check_budget_forecast(self):
+        """
+        Predict if the user will overspend this month based on current trajectory.
+    
+    
+        """
+        if len(self.df) == 0:
+            return
+    
+        # Current month data
+        latest_date = self.df["date"].max()
+        month_start = latest_date.replace(day=1)
+        month_data = self.df[self.df["date"] >= month_start]
+    
+        if len(month_data) == 0:
+            return
+    
+        day_of_month = latest_date.day
+        days_in_month = pd.Timestamp(latest_date).days_in_month
+    
+        current_month_spend = month_data["amount"].sum()
+        projected_month_spend = current_month_spend * (days_in_month / day_of_month)
+    
+        avg_monthly = self.profile.velocity_profile.get("avg_monthly_spend", 0)
+    
+>       if avg_monthly > 0 and projected_month_spend > avg_monthly * 1.2:
+           ^^^^^^^^^^^^^^^
+E       TypeError: '>' not supported between instances of 'MagicMock' and 'int'
+
+src\insights.py:284: TypeError
+_______________________ test_insights_overspend_trigger _______________________
+
+    def test_insights_overspend_trigger():
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=7),
+            "amount": [1000] * 7, # 7000 total weekly
+            "category": ["Food"] * 7,
+            "merchant": ["Acme"] * 7
+        })
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"weekend_multiplier": 1.0, "monthly_spend": {}}
+        # Expectation: 1000 weekly, Actual: 7000 weekly. Should definitely trigger overspend
+        profile_mock.categorical_profile = {"Food": {"mean": 100, "avg_txns_per_week": 10}}
+        profile_mock.merchant_profile = {}
+    
+>       generator = InsightGenerator(df, profile_mock)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_insights.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\insights.py:59: in __init__
+    self._check_budget_forecast()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.insights.InsightGenerator object at 0x0000023A8F3F4CD0>
+
+    def _check_budget_forecast(self):
+        """
+        Predict if the user will overspend this month based on current trajectory.
+    
+    
+        """
+        if len(self.df) == 0:
+            return
+    
+        # Current month data
+        latest_date = self.df["date"].max()
+        month_start = latest_date.replace(day=1)
+        month_data = self.df[self.df["date"] >= month_start]
+    
+        if len(month_data) == 0:
+            return
+    
+        day_of_month = latest_date.day
+        days_in_month = pd.Timestamp(latest_date).days_in_month
+    
+        current_month_spend = month_data["amount"].sum()
+        projected_month_spend = current_month_spend * (days_in_month / day_of_month)
+    
+        avg_monthly = self.profile.velocity_profile.get("avg_monthly_spend", 0)
+    
+>       if avg_monthly > 0 and projected_month_spend > avg_monthly * 1.2:
+           ^^^^^^^^^^^^^^^
+E       TypeError: '>' not supported between instances of 'MagicMock' and 'int'
+
+src\insights.py:284: TypeError
+_______________ test_insights_no_false_positives_on_normal_data _______________
+
+    def test_insights_no_false_positives_on_normal_data():
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=7),
+            "amount": [10] * 7,
+            "category": ["Food"] * 7,
+            "merchant": ["Acme"] * 7
+        })
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"weekend_multiplier": 1.0, "monthly_spend": {}}
+        profile_mock.categorical_profile = {"Food": {"mean": 10, "avg_txns_per_week": 7}}
+        profile_mock.merchant_profile = {}
+    
+>       generator = InsightGenerator(df, profile_mock)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_insights.py:57: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\insights.py:59: in __init__
+    self._check_budget_forecast()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <src.insights.InsightGenerator object at 0x0000023A8F3F5450>
+
+    def _check_budget_forecast(self):
+        """
+        Predict if the user will overspend this month based on current trajectory.
+    
+    
+        """
+        if len(self.df) == 0:
+            return
+    
+        # Current month data
+        latest_date = self.df["date"].max()
+        month_start = latest_date.replace(day=1)
+        month_data = self.df[self.df["date"] >= month_start]
+    
+        if len(month_data) == 0:
+            return
+    
+        day_of_month = latest_date.day
+        days_in_month = pd.Timestamp(latest_date).days_in_month
+    
+        current_month_spend = month_data["amount"].sum()
+        projected_month_spend = current_month_spend * (days_in_month / day_of_month)
+    
+        avg_monthly = self.profile.velocity_profile.get("avg_monthly_spend", 0)
+    
+>       if avg_monthly > 0 and projected_month_spend > avg_monthly * 1.2:
+           ^^^^^^^^^^^^^^^
+E       TypeError: '>' not supported between instances of 'MagicMock' and 'int'
+
+src\insights.py:284: TypeError
+=========================== short test summary info ===========================
+FAILED tests/test_health_scorer.py::test_health_scorer_empty_df - AttributeEr...
+FAILED tests/test_health_scorer.py::test_health_scorer_all_anomalies - Attrib...
+FAILED tests/test_health_scorer.py::test_health_scorer_perfect_user - Attribu...
+FAILED tests/test_insights.py::test_insights_generation_weekend_spike - TypeE...
+FAILED tests/test_insights.py::test_insights_overspend_trigger - TypeError: '...
+FAILED tests/test_insights.py::test_insights_no_false_positives_on_normal_data
+======================== 6 failed, 31 passed in 9.15s =========================

@@ -37,7 +37,50 @@ COLUMN_ALIASES = {
 }
 
 
-def load_csv(filepath: str) -> pd.DataFrame:
+def parse_generic_csv(df: pd.DataFrame) -> pd.DataFrame:
+    rename_map = {}
+    for col in df.columns:
+        if col in COLUMN_ALIASES:
+            rename_map[col] = COLUMN_ALIASES[col]
+    if rename_map:
+        df = df.rename(columns=rename_map)
+    return df
+
+def parse_mint_csv(df: pd.DataFrame) -> pd.DataFrame:
+    rename_map = {"date": "date", "description": "merchant", "category": "category", "amount": "amount"}
+    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+    if "transaction type" in df.columns:
+        df = df[df["transaction type"].astype(str).str.lower() == "debit"]
+    return df
+
+def parse_ynab_csv(df: pd.DataFrame) -> pd.DataFrame:
+    rename_map = {"date": "date", "payee": "merchant", "category group/category": "category", "outflow": "amount"}
+    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+    if "amount" in df.columns:
+        df["amount"] = pd.to_numeric(df["amount"].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce')
+        df = df.dropna(subset=["amount"])
+        df = df[df["amount"] > 0]
+    return df
+
+def parse_chase_csv(df: pd.DataFrame) -> pd.DataFrame:
+    rename_map = {"posting date": "date", "description": "merchant", "amount": "amount"}
+    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+    if "amount" in df.columns:
+        df["amount"] = pd.to_numeric(df["amount"], errors='coerce')
+        df = df[df["amount"] < 0]
+        df["amount"] = df["amount"].abs()
+    if "category" not in df.columns:
+        df["category"] = "Uncategorized"
+    return df
+
+PARSERS = {
+    "Generic (Default)": parse_generic_csv,
+    "Mint": parse_mint_csv,
+    "YNAB": parse_ynab_csv,
+    "Chase": parse_chase_csv,
+}
+
+def load_csv(filepath: str, parser_type: str = "Generic (Default)") -> pd.DataFrame:
     """
     Load a CSV file and standardize column names.
 
@@ -65,13 +108,9 @@ def load_csv(filepath: str) -> pd.DataFrame:
     # Strip whitespace from column names
     df.columns = df.columns.str.strip().str.lower()
 
-    # Apply column aliases
-    rename_map = {}
-    for col in df.columns:
-        if col in COLUMN_ALIASES:
-            rename_map[col] = COLUMN_ALIASES[col]
-    if rename_map:
-        df = df.rename(columns=rename_map)
+    # Apply parser logic
+    parser_func = PARSERS.get(parser_type, parse_generic_csv)
+    df = parser_func(df)
 
     # Validate required columns exist
     missing = [col for col in REQUIRED_COLUMNS if col not in df.columns]
@@ -85,19 +124,16 @@ def load_csv(filepath: str) -> pd.DataFrame:
     return df
 
 
-def load_from_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def load_from_dataframe(df: pd.DataFrame, parser_type: str = "Generic (Default)") -> pd.DataFrame:
     """
     Standardize an already-loaded DataFrame (e.g., from Streamlit upload).
     Same validation logic as load_csv but works on in-memory data.
     """
     df.columns = df.columns.str.strip().str.lower()
 
-    rename_map = {}
-    for col in df.columns:
-        if col in COLUMN_ALIASES:
-            rename_map[col] = COLUMN_ALIASES[col]
-    if rename_map:
-        df = df.rename(columns=rename_map)
+    # Apply parser logic
+    parser_func = PARSERS.get(parser_type, parse_generic_csv)
+    df = parser_func(df)
 
     missing = [col for col in REQUIRED_COLUMNS if col not in df.columns]
     if missing:

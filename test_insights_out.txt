@@ -1,0 +1,37 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lenovo\OneDrive\Desktop\Personal Finance Anomaly Detector
+plugins: anyio-4.10.0
+collected 3 items
+
+tests\test_insights.py .F.                                               [100%]
+
+================================== FAILURES ===================================
+_______________________ test_insights_overspend_trigger _______________________
+
+    def test_insights_overspend_trigger():
+        df = pd.DataFrame({
+            "date": pd.date_range("2026-01-01", periods=7),
+            "amount": [1000] * 7, # 7000 total weekly
+            "category": ["Food"] * 7,
+            "merchant": ["Acme"] * 7
+        })
+    
+        profile_mock = MagicMock()
+        profile_mock.temporal_profile = {"weekend_multiplier": 1.0, "monthly_spend": {}}
+        # Expectation: 1000 weekly, Actual: 7000 weekly. Should definitely trigger overspend
+        profile_mock.categorical_profile = {"Food": {"mean": 100, "avg_txns_per_week": 10}}
+        profile_mock.merchant_profile = {}
+        profile_mock.velocity_profile = {}
+    
+        generator = InsightGenerator(df, profile_mock)
+        insights = generator.get_insights()
+    
+>       assert any("Overspending on Food" in i["title"] for i in insights)
+E       assert False
+E        +  where False = any(<generator object test_insights_overspend_trigger.<locals>.<genexpr> at 0x00000253D39F6740>)
+
+tests\test_insights.py:44: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_insights.py::test_insights_overspend_trigger - assert False
+========================= 1 failed, 2 passed in 1.42s =========================

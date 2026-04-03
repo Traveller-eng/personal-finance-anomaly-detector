@@ -33,8 +33,10 @@ WHY ISOLATION FOREST:
 
 import pandas as pd
 import numpy as np
+import hashlib
 from sklearn.ensemble import IsolationForest
 from src.feature_engine import get_feature_columns
+from src.database import save_model, load_model, get_expected_transactions
 
 
 # ─── Model Configuration ─────────────────────────────────────────────────────
@@ -81,12 +83,40 @@ class AnomalyDetector:
         """
         df = df.copy()
 
-        # Extract feature matrix
+        # Load user feedback rules
+        expected = get_expected_transactions()
+        
+        # Base feature matrix
         X = df[self.feature_columns].values
 
-        # Fit and predict
-        self.model.fit(X)
-        self.is_fitted = True
+        # Generate hash based on Data + Rules for intelligent cache busting
+        rule_str = str(expected)
+        # Safely hash the dataframe by hashing all its values to bytes
+        df_hash_bytes = pd.util.hash_pandas_object(df).values.tobytes()
+        data_hash = hashlib.md5(df_hash_bytes + rule_str.encode()).hexdigest()
+
+        # Build exclusion mask for training
+        is_expected = pd.Series(False, index=df.index)
+        if expected:
+            for rule in expected:
+                merchant_match = df["merchant"].str.lower() == rule["merchant"]
+                amount_match = df["amount"].between(rule["amount_min"], rule["amount_max"])
+                is_expected = is_expected | (merchant_match & amount_match)
+
+        # Exclude dismissed transactions from training set (closing the feedback loop)
+        X_train = df.loc[~is_expected, self.feature_columns].values
+        if len(X_train) == 0:
+            X_train = X  # Fallback if somehow literally everything is expected
+
+        # Attempt to load cached model
+        cached_model = load_model(data_hash, self.config.get("contamination", 0.05))
+        if cached_model is not None:
+            self.model = cached_model
+            self.is_fitted = True
+        else:
+            self.model.fit(X_train)
+            self.is_fitted = True
+            save_model(self.model, data_hash, self.config.get("contamination", 0.05))
 
         # Get anomaly labels: -1 = anomaly, 1 = normal
         labels = self.model.predict(X)
@@ -102,6 +132,11 @@ class AnomalyDetector:
 
         # Add severity levels based on score percentiles
         df["anomaly_severity"] = self._calculate_severity(scores, labels)
+
+        # Force clear predictions for known expected logic so they never show up
+        if is_expected.any():
+            df.loc[is_expected, "is_anomaly"] = 0
+            df.loc[is_expected, "anomaly_severity"] = "normal"
 
         return df
 
