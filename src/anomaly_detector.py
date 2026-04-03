@@ -1,11 +1,11 @@
 """
 anomaly_detector.py — Isolation Forest Anomaly Detection
 =========================================================
-PURPOSE (Interview Talking Point):
-    This is the CORE ML component. It uses Isolation Forest to identify
+PURPOSE:
+     It uses Isolation Forest to identify
     transactions that deviate from the user's normal spending patterns.
 
-WHY ISOLATION FOREST (Interview Deep-Dive):
+WHY ISOLATION FOREST:
     Traditional approaches (z-score, IQR) only look at one dimension at a time.
     Isolation Forest is a MULTI-DIMENSIONAL anomaly detector:
 
@@ -52,11 +52,7 @@ class AnomalyDetector:
     """
     Isolation Forest wrapper for personal finance anomaly detection.
 
-    Interview Talking Points:
-        - Encapsulated as a class for clean state management
-        - Stores the fitted model, feature names, and threshold
-        - Provides both binary labels and continuous anomaly scores
-        - Anomaly scores range from -1 (most anomalous) to +1 (most normal)
+
     """
 
     def __init__(self, config: dict = None):
@@ -75,11 +71,7 @@ class AnomalyDetector:
         """
         Fit the model and predict anomalies in one step.
 
-        Interview Explanation:
-            In unsupervised anomaly detection, we train and predict on the
-            SAME data. There's no train/test split because we don't have labels.
-            The model learns what "normal" looks like from the majority of data,
-            then flags the minority that doesn't fit.
+
 
         Parameters:
             df: DataFrame with engineered features
@@ -117,12 +109,7 @@ class AnomalyDetector:
         """
         Assign severity levels to anomalies.
 
-        Interview Explanation:
-            Not all anomalies are equally unusual. We use the anomaly score
-            to create a 3-tier severity system:
-            - CRITICAL: Score in the bottom 1% (extremely unusual)
-            - WARNING: Score in the bottom 5% but not critical
-            - NORMAL: Everything else
+
 
             This helps users prioritize which anomalies to investigate first.
         """

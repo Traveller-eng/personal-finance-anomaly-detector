@@ -1,7 +1,7 @@
 """
 health_scorer.py — Financial Health Score (0-100)
 ==================================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     Reduces complex spending behavior into a single, intuitive number (0-100)
     that tells the user "how healthy are my finances?" at a glance.
 
@@ -9,7 +9,7 @@ PURPOSE (Interview Talking Point):
     creditworthiness. It rewards consistency, budget adherence, and
     balanced spending across categories.
 
-WHY A COMPOSITE SCORE (Interview Deep-Dive):
+WHY A COMPOSITE SCORE:
     A single metric is powerful for two reasons:
     1. COMMUNICATION: "Your health score is 72" is instantly understandable
     2. TRACKING: Users can see if their score improves over weeks/months
@@ -32,12 +32,7 @@ class HealthScorer:
     """
     Calculates a 0-100 financial health score from transaction data.
 
-    Interview Talking Points:
-        - Composite score from 5 independent components (20 pts each)
-        - Each component is normalized to 0-20 range
-        - Components are interpretable — users can see exactly what's
-          helping or hurting their score
-        - Score updates as new transactions come in
+
     """
 
     MAX_SCORE = 100
@@ -70,10 +65,7 @@ class HealthScorer:
         """
         How well does the user stay within their normal spending ranges?
 
-        Interview Explanation:
-            For each category, we check what percentage of transactions fall
-            within the "normal range" (mean ± 1.5 × std). High adherence
-            means the user is predictable and staying within budget.
+
 
         Scoring:
             - 100% within range → 20 points
@@ -101,10 +93,7 @@ class HealthScorer:
         """
         How consistent (predictable) is daily spending?
 
-        Interview Explanation:
-            We use the Coefficient of Variation (CV = std / mean) of daily spending.
-            Low CV = consistent spending = higher score.
-            High CV = erratic spending = lower score.
+
 
             CV is better than raw std because it's scale-independent:
             a std of ₹500 means different things for someone spending ₹1000/day
@@ -131,9 +120,7 @@ class HealthScorer:
         """
         Fewer anomalies = healthier spending.
 
-        Interview Explanation:
-            Simple but effective: anomaly rate directly penalizes the score.
-            0% anomalies → 20 points, 10%+ anomalies → near 0 points.
+
 
         Scoring:
             score = (1 - anomaly_rate) × 20, with anomaly_rate capped at 1.0
@@ -150,10 +137,7 @@ class HealthScorer:
         """
         Is spending well-distributed across categories?
 
-        Interview Explanation:
-            We use Shannon Entropy to measure category distribution diversity.
-            High entropy = balanced spending across categories = healthier.
-            Low entropy = dominated by one category = potentially risky.
+
 
             Shannon Entropy: H = -Σ(p_i × log2(p_i))
             Max entropy = log2(n_categories) (uniform distribution)
@@ -179,10 +163,7 @@ class HealthScorer:
         """
         Is spending trending down (good) or up (concerning)?
 
-        Interview Explanation:
-            We compute the slope of a linear regression on the 30-day rolling
-            average of daily spending. Negative slope (spending decreasing) gets
-            higher scores, positive slope (spending increasing) gets penalized.
+
 
             This is PREDICTIVE — it tells the user about their trajectory,
             not just their current state.

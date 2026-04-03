@@ -1,7 +1,7 @@
 """
 explainer.py — Human-Readable Anomaly Explanations
 =====================================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     The MOST IMPORTANT module for user trust. An anomaly detector that says
     "this is anomalous" without explanation is useless — users need to know WHY.
 
@@ -10,7 +10,7 @@ PURPOSE (Interview Talking Point):
     "You usually spend ₹300-₹500 on food. This ₹2200 transaction is 4.4× higher
     than your average. You also rarely spend this much on Mondays."
 
-WHY EXPLAINABILITY MATTERS (Interview Deep-Dive):
+WHY EXPLAINABILITY MATTERS:
     In fintech/ML systems, explainability is CRITICAL because:
     1. Users won't trust a black-box system with their finances
     2. False positives (normal transactions flagged as anomalies) are common —
@@ -66,12 +66,7 @@ def _explain_single_anomaly(row: pd.Series, profile: UserProfile) -> tuple[str, 
     """
     Generate explanation for a single anomalous transaction.
 
-    Interview Explanation:
-        We check multiple "explanation factors" and combine them:
-        1. Amount vs category baseline (most common reason)
-        2. Amount vs recent trend (rolling average)
-        3. Merchant novelty (new/unusual merchant)
-        4. Temporal unusualness (unusual day/time)
+
 
         Each factor that triggers gets added to the explanation.
         The final explanation is a concatenation of all triggered factors.

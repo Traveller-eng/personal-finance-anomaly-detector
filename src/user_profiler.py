@@ -1,7 +1,7 @@
 """
 user_profiler.py — Behavioral Spending Profiling
 ==================================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     Creates a "spending fingerprint" for the user — a comprehensive profile
     of their normal financial behavior. This profile serves as the BASELINE
     against which anomalies are explained.
@@ -27,14 +27,7 @@ class UserProfile:
     """
     Comprehensive spending behavior profile for a single user.
 
-    Interview Talking Points:
-        - Built from historical transaction data
-        - Captures 5 dimensions of behavior:
-          1. Per-category spending (mean, median, std, min, max)
-          2. Temporal patterns (weekday vs weekend, monthly distribution)
-          3. Merchant preferences (top merchants per category)
-          4. Spending velocity (daily spend rate and trend)
-          5. Budget utilization (how spending distributes across the month)
+
     """
 
     def __init__(self, df: pd.DataFrame, currency_symbol: str = "₹"):
@@ -61,12 +54,7 @@ class UserProfile:
         """
         Per-category spending statistics.
 
-        Interview Deep-Dive:
-            This is the heart of the profiler. For each category, we compute:
-            - mean: The baseline expectation
-            - std: How much variation is normal
-            - percentiles: What range of amounts is typical (25th-75th)
-            - frequency: How often the user transacts in this category
+
 
             The "normal range" is mean ± 1.5 × std — anything outside is
             potentially anomalous in that category.
@@ -134,11 +122,7 @@ class UserProfile:
         """
         Merchant preferences per category.
 
-        Interview Deep-Dive:
-            Tracking merchant frequency helps detect "new merchant" anomalies.
-            If a user always orders from Swiggy and suddenly has a large
-            transaction at "Unknown Store", that's suspicious even if the
-            amount is normal.
+
         """
         merchant_profile = {}
         for category, group in df.groupby("category"):
@@ -174,11 +158,7 @@ class UserProfile:
         """
         Spending velocity — how fast the user spends over time.
 
-        Interview Deep-Dive:
-            Velocity captures the RATE of spending, not just the amount.
-            A user who normally spends ₹2000/day suddenly spending ₹5000/day
-            for several days indicates a behavioral shift, even if individual
-            transactions look normal.
+
         """
         daily_spend = df.groupby("date")["amount"].sum()
 

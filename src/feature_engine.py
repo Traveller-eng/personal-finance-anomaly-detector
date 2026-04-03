@@ -1,7 +1,7 @@
 """
 feature_engine.py — Feature Engineering Pipeline
 ==================================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     Raw transaction data (date, amount, category, merchant) isn't enough for
     anomaly detection. We need to engineer features that capture BEHAVIORAL CONTEXT:
     - Is this amount unusual FOR THIS CATEGORY?
@@ -30,12 +30,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     Takes cleaned data and adds ML-ready features.
     Returns DataFrame with all original columns plus engineered features.
 
-    Interview Explanation:
-        Each feature captures a different "dimension" of spending behavior:
-        - amount_zscore: "How unusual is this amount within its category?"
-        - rolling averages: "What's the user's recent spending trend?"
-        - category ratios: "How does this compare to their baseline?"
-        - frequency features: "How active has the user been recently?"
+
     """
     df = df.copy()
 
@@ -79,11 +74,7 @@ def _add_category_zscore(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate z-score of amount within each category.
 
-    Interview Deep-Dive:
-        Z-score = (value - mean) / std_dev
-        A z-score of 3 means the value is 3 standard deviations from the mean.
-        We compute this PER CATEGORY because ₹5000 is normal for shopping
-        but anomalous for food. This is category-relative normalization.
+
     """
     category_stats = df.groupby("category")["amount"].agg(["mean", "std"]).reset_index()
     category_stats.columns = ["category", "cat_mean", "cat_std"]
@@ -100,10 +91,7 @@ def _add_rolling_averages(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add 7-day and 30-day rolling average spending.
 
-    Interview Deep-Dive:
-        Rolling averages capture TREND — if someone usually spends ₹500/day
-        but suddenly their 7-day average is ₹2000/day, something changed.
-        We sort by date first to ensure the rolling window is chronological.
+
     """
     # Compute daily total spend, then rolling average
     daily_spend = df.groupby("date")["amount"].sum().reset_index()
@@ -126,10 +114,7 @@ def _add_category_ratio(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ratio of transaction amount to average daily spend in that category.
 
-    Interview Deep-Dive:
-        If the average daily food spend is ₹400, and today's food transaction
-        is ₹2000, the ratio is 5.0 — meaning 5× the usual daily food spend.
-        This normalizes across categories with very different spending levels.
+
     """
     # Average daily spend per category
     date_range_days = (df["date"].max() - df["date"].min()).days + 1
@@ -150,10 +135,7 @@ def _add_frequency_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Count transactions in the last 7 days for each date.
 
-    Interview Deep-Dive:
-        Transaction frequency matters — a user who normally makes 3 txns/day
-        suddenly making 10 is suspicious, even if individual amounts are normal.
-        This is COUNT-BASED anomaly detection capability.
+
     """
     daily_counts = df.groupby("date").size().reset_index(name="daily_txn_count")
     daily_counts = daily_counts.sort_values("date")
@@ -170,10 +152,7 @@ def _add_days_since_last(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate days since the previous transaction.
 
-    Interview Deep-Dive:
-        Unusual gaps in spending can indicate behavioral changes:
-        - A user who transacts daily going silent for a week, then making
-          a large purchase, could be a compromised account.
+
     """
     unique_dates = df["date"].drop_duplicates().sort_values()
     date_df = pd.DataFrame({"date": unique_dates})
@@ -188,11 +167,7 @@ def _add_category_encoding(df: pd.DataFrame) -> pd.DataFrame:
     """
     Label-encode categories for the ML model.
 
-    Interview Deep-Dive:
-        ML models need numeric inputs. Label encoding assigns each category
-        an integer. We use this instead of one-hot encoding because Isolation
-        Forest handles ordinal features well, and one-hot would increase
-        dimensionality unnecessarily.
+
     """
     categories_sorted = sorted(df["category"].unique())
     cat_to_int = {cat: i for i, cat in enumerate(categories_sorted)}

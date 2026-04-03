@@ -1,7 +1,7 @@
 """
 app.py — Personal Finance Anomaly Detector — Streamlit Dashboard
 =================================================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     The front-end of the system. Connects all backend modules into an
     interactive, visual experience. Built with Streamlit for rapid iteration
     and Python-native UI composition.
@@ -168,11 +168,7 @@ def run_pipeline(df_raw: pd.DataFrame, currency_symbol: str, contamination: floa
     Full ML pipeline: load → clean → engineer → profile → detect → explain → score.
     Cached so rerunning the same data doesn't repeat computation.
 
-    Interview Explanation:
-        st.cache_data memoizes the function output. On repeated calls with
-        the same inputs, Streamlit returns the cached result instantly.
-        This is critical for UX — without caching, every widget interaction
-        re-runs the full ML pipeline (~2-3 seconds delay).
+
     """
     # 1. Load + validate
     df = load_from_dataframe(df_raw.copy())

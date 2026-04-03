@@ -1,7 +1,7 @@
 """
 insights.py — Actionable Financial Recommendations
 =====================================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     Transforms raw data analysis into ACTIONABLE ADVICE. This is what
     makes PFAD a "financial assistant" rather than just a "data viewer."
 
@@ -31,11 +31,7 @@ class InsightGenerator:
     """
     Generates actionable financial insights from transaction data and user profile.
 
-    Interview Talking Points:
-        - Rule-based system (not ML) — clear, debuggable, interpretable
-        - Categorized insights: warnings, positive reinforcement, suggestions, predictions
-        - Priority-ranked so the most important insights appear first
-        - Each insight includes supporting data for credibility
+
     """
 
     def __init__(
@@ -214,10 +210,7 @@ class InsightGenerator:
         """
         Predict if the user will overspend this month based on current trajectory.
 
-        Interview Deep-Dive:
-            Simple linear extrapolation: if we're halfway through the month
-            and you've already spent 60% of your monthly average, you're
-            on track to overshoot by 20%.
+
         """
         if len(self.df) == 0:
             return

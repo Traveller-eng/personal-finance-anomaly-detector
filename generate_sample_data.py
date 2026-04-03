@@ -1,7 +1,7 @@
 """
 generate_sample_data.py — Synthetic Transaction Generator
 ==========================================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     Generates realistic personal finance data with KNOWN anomalies injected.
     This is critical for validating the anomaly detector — since we know exactly
     which transactions are anomalous, we can measure detection accuracy.
@@ -35,7 +35,6 @@ OUTPUT_FILE = os.path.join(OUTPUT_DIR, "transactions.csv")
 
 # ─── Spending Profiles ────────────────────────────────────────────────────────
 # Each category has: (mean_amount, std_dev, avg_txns_per_week, merchants)
-# Interview Note: These profiles define "normal behavior" — the baseline
 # that the anomaly detector will learn to identify deviations from.
 
 SPENDING_PROFILES = {
@@ -107,11 +106,7 @@ def generate_normal_transactions(start_date: datetime, end_date: datetime) -> li
     """
     Generate normal spending transactions across all categories.
 
-    Interview Explanation:
-        For each day in the date range, we probabilistically decide whether
-        a transaction occurs in each category based on txns_per_week.
-        The amount is sampled from a normal distribution clipped to positive values.
-        This creates realistic, varied spending data.
+
     """
     transactions = []
     current_date = start_date
@@ -166,12 +161,7 @@ def inject_anomalies(transactions: list[dict], anomaly_fraction: float = 0.05) -
     """
     Inject known anomalies into the transaction list.
 
-    Interview Explanation:
-        We inject 4 types of anomalies to test different detection capabilities:
-        1. AMOUNT SPIKE — Transaction 3-8× the category average
-        2. UNUSUAL TIMING — Transactions on days the user never spends
-        3. CATEGORY BURST — Multiple transactions in a low-frequency category on one day
-        4. NEW MERCHANT — Transaction at a merchant not in the user's history
+
 
         Injecting known anomalies lets us compute precision/recall of the detector.
     """

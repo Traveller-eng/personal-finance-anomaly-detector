@@ -1,7 +1,7 @@
 """
 data_loader.py — Transaction Data Ingestion
 =============================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     Handles the first step of any ML pipeline: getting data in reliably.
     This module loads CSV files with flexible column mapping and validates
     that required fields exist with correct types.
@@ -41,10 +41,7 @@ def load_csv(filepath: str) -> pd.DataFrame:
     """
     Load a CSV file and standardize column names.
 
-    Interview Explanation:
-        Real-world CSVs come in many formats — different column names, encodings,
-        delimiters. This function handles common variations so the rest of the
-        pipeline can assume clean, standardized column names.
+
 
     Parameters:
         filepath: Path to the CSV file

@@ -1,7 +1,7 @@
 """
 preprocessor.py — Data Cleaning & Transformation
 ==================================================
-PURPOSE (Interview Talking Point):
+PURPOSE:
     Transforms raw transaction data into a clean, ML-ready format.
     This is where we handle the "real-world messiness" — missing values,
     inconsistent formats, type coercion, and derived temporal features.
@@ -22,11 +22,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Master cleaning pipeline. Runs all cleaning steps in order.
 
-    Interview Explanation:
-        This function is the single entry point for data cleaning.
-        It chains together individual cleaning functions, each handling
-        one specific type of messiness. This is the "pipeline pattern" —
-        each step is independent and can be tested or removed separately.
+
 
     Parameters:
         df: Raw DataFrame from data_loader
@@ -148,7 +144,7 @@ def _handle_missing(df: pd.DataFrame) -> pd.DataFrame:
     """
     Handle remaining missing values.
 
-    Strategy (Interview Explanation):
+    Strategy:
         - date: Already handled (dropped in _parse_dates)
         - amount: Already handled (dropped in _clean_amounts)
         - category: Fill with 'uncategorized' (don't lose the transaction)
@@ -164,10 +160,7 @@ def _add_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add time-based derived columns.
 
-    Interview Explanation:
-        Spending behavior is time-dependent — people spend differently on
-        weekends, at month-end, and across seasons. These features let the
-        anomaly detector capture temporal patterns, not just amounts.
+
     """
     df["day_of_week"] = df["date"].dt.dayofweek          # 0=Monday, 6=Sunday
     df["day_name"] = df["date"].dt.day_name()              # "Monday", "Tuesday", ...
