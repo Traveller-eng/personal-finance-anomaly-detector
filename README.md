@@ -33,9 +33,14 @@ PFAD refuses to be a black box. It leverages an **Ensemble Reasoning Engine**—
 ### 3. Native Ground Truth Evaluation Engine
 How do you know the ML system works? We built an onboard performance engine that evaluates itself. By injecting synthetic anomalies into the mock dataset with true labels, PFAD calculates rigorous ML metrics (**Precision**, **Recall**, and **F1-Score**) in real-time, proving its accuracy directly in the diagnostic panel. (When using real-world data without ground truth, it gracefully falls back to generating Model Confidence heuristics).
 
-### 4. Native Bank Export Parsing
-Stop wrestling with generic CSV mapping. PFAD natively parses exports from the industry's top platforms:
-*   **Mint, Chase, and YNAB** formats are supported natively. Feed the tool your export file and the routing architecture parses merchant strings, timestamps, and classifications instantly.
+### 4. Native Multi-Format Ingestion Engine
+Stop wrestling with generic CSV mapping or manual data entry. PFAD's robust `unified_parser` natively supports:
+*   **Bank Exports**: Natively maps standard/messy headers (Mint, Chase) using fuzzy match resolution.
+*   **Excel Spreadsheets**: Parses `.xlsx` and `.xls` files natively, intelligently identifying primary transaction sheets.
+*   **PDF Statements & Receipts**: A layered 5-stage Regex pipeline processes messy Indian transaction formats — easily digesting PDFs from GPay, PhonePe, and structured bank statements with built-in noise reduction and confidence scoring.
+
+### 5. Adaptive Financial Memory
+To provide true personalization, PFAD includes a local `Adaptive Memory Subsystem`. If the default category classification (`Rule-Based` + `Machine Learning`) fails or misses a nuanced merchant, you can manually categorize it directly through the dashboard. The system persists this into `merchant_category_map.json`, ensuring the framework intelligently auto-applies your override mappings on all future uploads—learning specifically for you over time.
 
 ### 5. Smart Subscription tracking & Financial Health Score
 Your financial pulse is quantified into a 0-100 score, embedded in a seamless dark-mode radial dashboard. Algorithms actively scout and categorize invisible subscriptions prioritizing structural changes to cut down overhead.
@@ -66,17 +71,21 @@ PFAD is optimized for local execution—meaning it is fast, private, and deeply 
 ```text
 ├── app.py                      # Core interactive Streamlit dashboard & UI Engine
 ├── requirements.txt            # Environment mappings
+├── data/                       # Local store for sample data and adaptive memory (merchant_category_map.json)
 ├── src/                        # Core backend capabilities
 │   ├── anomaly_detector.py     # Isolation Forest & Performance Evaluation Engine
-│   ├── data_loader.py          # Native format parsing (Mint, Chase, YNAB)
+│   ├── category_classifier.py  # Adaptive rule-based and ML categorization logic
+│   ├── data_loader.py          # Fuzzy matching & column normalization
 │   ├── database.py             # SQLite wrapper for rules, constraints & budgets
 │   ├── explainer.py            # Structural causal deconstruction for anomalies
 │   ├── feature_engine.py       # ML vector & feature extraction
 │   ├── health_scorer.py        # Composite 0-100 logic processing
 │   ├── insights.py             # Action Layer generator for predictive financial adjustments
 │   ├── preprocessor.py         # Null handling and data sanitization
+│   ├── parsers/                # Extensible parsing subsystem (CSV, Excel, PDF)
 │   └── user_profiler.py        # Baseline behavioral mapping
 └── tests/                      
+    ├── test_parsers.py         # Multi-format parser logic integration tests
     ├── test_stress_suite.py    # Master end-to-end regression & stress suite
 ```
 
@@ -132,7 +141,7 @@ streamlit run app.py
 - Isolation Forest may produce false positives in sparse or irregular categories
 - Z-score assumes normal distribution, which may not hold across all spending patterns
 - Impact projections are heuristic and not predictive models
-- No real-time bank API integration (CSV-based ingestion only)
+- Image-only (scanned) PDFs currently require external OCR (text-based PDF statements are fully supported natively)
 
 ---
 
