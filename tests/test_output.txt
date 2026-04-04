@@ -1,0 +1,124 @@
+Not enough training data for ML classifier (9 rows)
+
+======================================================================
+TEST 1: Indian Bank CSV (UPI-style columns)
+======================================================================
+Input columns: ['Date', 'Time', 'Transaction Type', 'Party', 'UPI Transaction ID', 'Amount (INR)']
+Input rows: 5
+
+  [DataLoader] Γ£à Found exact column: 'date'
+  [DataLoader] Γ£à Mapped 'amount (inr)' ΓåÆ 'amount'
+  [DataLoader] Γ£à Mapped 'party' ΓåÆ 'merchant'
+  [DataLoader] Γ£à Mapped 'transaction type' ΓåÆ 'category'
+WARNINGS:
+  Γ£à Found exact column: 'date'
+  Γ£à Mapped 'amount (inr)' ΓåÆ 'amount'
+  Γ£à Mapped 'party' ΓåÆ 'merchant'
+  Γ£à Mapped 'transaction type' ΓåÆ 'category'
+
+Output columns: ['date', 'amount', 'category', 'merchant', 'time', 'upi transaction id']
+Output rows: 5
+
+Γ£à TEST 1 PASSED: Indian bank CSV auto-mapped correctly
+      date  amount      merchant category
+2026-01-01   250.0        Swiggy    Debit
+2026-01-02  1000.0 Naveen Sharma   Credit
+2026-01-03  3499.0        Amazon    Debit
+2026-01-04   150.0          Uber    Debit
+2026-01-05   199.0       Netflix    Debit
+
+======================================================================
+TEST 2: Missing Category Column
+======================================================================
+  [DataLoader] Γ£à Found exact column: 'date'
+  [DataLoader] Γ£à Found exact column: 'amount'
+  [DataLoader] Γ£à Mapped 'description' ΓåÆ 'merchant'
+  [DataLoader] ΓÜá∩╕Å Column 'category' not found in data
+  [DataLoader] Γä╣∩╕Å Category column missing ΓÇö auto-generated as 'uncategorized'
+WARNINGS:
+  Γ£à Found exact column: 'date'
+  Γ£à Found exact column: 'amount'
+  Γ£à Mapped 'description' ΓåÆ 'merchant'
+  ΓÜá∩╕Å Column 'category' not found in data
+  Γä╣∩╕Å Category column missing ΓÇö auto-generated as 'uncategorized'
+
+Γ£à TEST 2 PASSED: Category auto-generated
+      date  amount        merchant      category
+2026-01-01     500    Zomato Order uncategorized
+2026-02-01     200       Uber Ride uncategorized
+2026-03-01    1500 Amazon Purchase uncategorized
+
+======================================================================
+TEST 3: Category Classification (Rule + ML)
+======================================================================
+WARNINGS:
+  ≡ƒöä 10 rows need category classification
+  Γ£à Rule engine classified 9/10 transactions
+  ≡ƒñû ML model classified 0/1 remaining transactions
+
+CLASSIFICATION RESULTS:
+  Swiggy               ΓåÆ food            [High  ] (rule)
+  Uber                 ΓåÆ transport       [High  ] (rule)
+  Amazon               ΓåÆ shopping        [High  ] (rule)
+  Netflix              ΓåÆ entertainment   [High  ] (rule)
+  HDFC Bank            ΓåÆ uncategorized   [Low   ] (default)
+  Zomato               ΓåÆ food            [High  ] (rule)
+  Flipkart             ΓåÆ shopping        [High  ] (rule)
+  Ola                  ΓåÆ transport       [High  ] (rule)
+  Spotify              ΓåÆ entertainment   [High  ] (rule)
+  IRCTC Railway        ΓåÆ transport       [High  ] (rule)
+
+Γ£à TEST 3 PASSED: Category classification working correctly
+
+======================================================================
+TEST 4: Messy Amount Formats
+======================================================================
+WARNINGS:
+
+CLEANED AMOUNTS:
+  'Γé╣1,500.00'  ΓåÆ  1500.0
+  '$ 250'  ΓåÆ  250.0
+  'Γé¼ 99.99'  ΓåÆ  99.99
+  '┬ú30'  ΓåÆ  30.0
+  '(500)'  ΓåÆ  500.0
+  '1200'  ΓåÆ  1200.0
+
+Γ£à TEST 4 PASSED: Messy amounts cleaned correctly
+
+======================================================================
+TEST 5: Pipeline Never Crashes (Garbage Data)
+======================================================================
+  [DataLoader] Γ£à Mapped 'x' ΓåÆ 'date'
+  [DataLoader] ΓÜá∩╕Å Column 'amount' not found in data
+  [DataLoader] Γ£à Mapped 'y' ΓåÆ 'merchant'
+  [DataLoader] ΓÜá∩╕Å Column 'category' not found in data
+  [DataLoader] Γä╣∩╕Å Category column missing ΓÇö auto-generated as 'uncategorized'
+  [DataLoader] Γ¥î Amount column could not be detected ΓÇö this is critical
+  [DataLoader] Γ¥î Critical: 'amount' column could not be resolved
+  Schema 1: ['x', 'y', 'z'] ΓåÆ 2 rows, 7 warnings Γ£à
+  Schema 2: [] ΓåÆ 0 rows, 1 warnings Γ£à
+  [DataLoader] Γ£à Mapped 'value' ΓåÆ 'date'
+  [DataLoader] ΓÜá∩╕Å Column 'amount' not found in data
+  [DataLoader] ΓÜá∩╕Å Column 'merchant' not found in data
+  [DataLoader] ΓÜá∩╕Å Column 'category' not found in data
+  [DataLoader] Γä╣∩╕Å Category column missing ΓÇö auto-generated as 'uncategorized'
+  [DataLoader] Γä╣∩╕Å Merchant column missing ΓÇö auto-generated as 'Unknown'
+  [DataLoader] Γ¥î Amount column could not be detected ΓÇö this is critical
+  [DataLoader] Γ¥î Critical: 'amount' column could not be resolved
+  Schema 3: ['value'] ΓåÆ 3 rows, 8 warnings Γ£à
+  [DataLoader] ΓÜá∩╕Å Column 'date' not found in data
+  [DataLoader] ΓÜá∩╕Å Column 'amount' not found in data
+  [DataLoader] ΓÜá∩╕Å Column 'merchant' not found in data
+  [DataLoader] ΓÜá∩╕Å Column 'category' not found in data
+  [DataLoader] Γä╣∩╕Å Category column missing ΓÇö auto-generated as 'uncategorized'
+  [DataLoader] Γä╣∩╕Å Merchant column missing ΓÇö auto-generated as 'Unknown'
+  [DataLoader] ΓÜá∩╕Å Date column missing ΓÇö defaulted to today's date
+  [DataLoader] Γ¥î Amount column could not be detected ΓÇö this is critical
+  [DataLoader] Γ¥î Critical: 'amount' column could not be resolved
+  Schema 4: ['αñªαñ┐αñ¿αñ╛αñéαñò', 'αñ░αñ╛αñ╢αñ┐', 'αñ╡αñ┐αñ╡αñ░αñú'] ΓåÆ 1 rows, 9 warnings Γ£à
+
+Γ£à TEST 5 PASSED: No crashes on garbage data
+
+======================================================================
+ALL TESTS PASSED Γ£à
+======================================================================

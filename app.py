@@ -14,8 +14,9 @@ PURPOSE:
     5. Health      — Financial health score breakdown + recommendations
 
 PIPELINE (Every page shares this):
-    Upload CSV → load → preprocess → feature engineer → profile →
-    anomaly detect → explain → health score → insights → display
+    Upload (CSV/Excel/PDF) → parse → map columns → classify categories →
+    preprocess → feature engineer → profile → anomaly detect →
+    explain → health score → insights → display
 """
 
 import streamlit as st
@@ -34,6 +35,9 @@ import streamlit_authenticator as stauth
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.data_loader import load_from_dataframe, load_csv
+from src.category_classifier import classify_categories, get_classification_summary
+from src.parsers import parse_file, ParseResult
+from src.parsers.unified_parser import get_supported_extensions
 from src.preprocessor import clean_data
 from src.feature_engine import engineer_features
 from src.user_profiler import UserProfile
@@ -156,37 +160,45 @@ div[data-testid="stMetricValue"] { font-size: 1.4rem !important; font-weight: 60
 @st.cache_data(show_spinner=False)
 def run_pipeline(df_raw: pd.DataFrame, currency_symbol: str, contamination: float):
     """
-    Full ML pipeline: load → clean → engineer → profile → detect → explain → score.
+    Full ML pipeline: load → classify → clean → engineer → profile → detect → explain → score.
     Cached so rerunning the same data doesn't repeat computation.
-
-
+    Returns (df, profile, scorer, insights, detector, all_warnings)
     """
-    # 1. Load + validate
-    df = load_from_dataframe(df_raw.copy())
+    all_warnings = []
+    # Cache buster for new data model separation
+    df_raw = df_raw.copy()
 
-    # 2. Clean & preprocess
+    # 1. Load + validate (schema-adaptive, never crashes)
+    df, load_warnings = load_from_dataframe(df_raw.copy())
+    all_warnings.extend(load_warnings)
+
+    # 2. Auto-classify categories (hybrid: rules + ML)
+    df, class_warnings = classify_categories(df)
+    all_warnings.extend(class_warnings)
+
+    # 3. Clean & preprocess
     df = clean_data(df)
 
-    # 3. Feature engineering
+    # 4. Feature engineering
     df = engineer_features(df)
 
-    # 4. User profiling
+    # 5. User profiling
     profile = UserProfile(df, currency_symbol=currency_symbol)
 
-    # 5. Anomaly detection
+    # 6. Anomaly detection
     detector = AnomalyDetector(config={"contamination": contamination})
     df = detector.fit_predict(df)
 
-    # 6. Explanation generation
+    # 7. Explanation generation
     df = explain_anomalies(df, profile)
 
-    # 7. Health scoring
+    # 8. Health scoring
     scorer = HealthScorer(df, profile)
 
-    # 8. Insights
+    # 9. Insights
     insights = InsightGenerator(df, profile, currency_symbol=currency_symbol)
 
-    return df, profile, scorer, insights, detector
+    return df, profile, scorer, insights, detector, all_warnings
 
 
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -201,23 +213,20 @@ def render_sidebar() -> tuple:
         st.markdown("### 📂 Data Source")
         data_source = st.radio(
             "Choose data",
-            ["Use Sample Data", "Upload Your CSV"],
+            ["Use Sample Data", "Upload Your File"],
             index=0,
             label_visibility="collapsed",
         )
 
         uploaded_file = None
-        parser_type = st.selectbox(
-            "Bank Format",
-            ["Generic (Default)", "Mint", "YNAB", "Chase"],
-        )
-        if data_source == "Upload Your CSV":
+        if data_source == "Upload Your File":
             uploaded_file = st.file_uploader(
-                "Upload CSV",
-                type=["csv"],
-                help="Required columns: date, amount, category, merchant",
+                "Upload Transaction File",
+                type=get_supported_extensions(),
+                help="Supports CSV, Excel (.xlsx), and PDF (GPay, PhonePe, bank statements)",
             )
-            st.caption("Required columns for Generic: `date`, `amount`, `category`, `merchant`")
+            st.caption("📌 **Smart parsing**: CSV, Excel, and PDF files are auto-detected and parsed")
+            st.caption("🔄 Columns like `amount (inr)`, `party`, `txn date` are auto-mapped")
 
         st.divider()
 
@@ -271,13 +280,17 @@ def render_sidebar() -> tuple:
         st.divider()
         st.caption("Built with Isolation Forest + Streamlit")
 
-    return page, uploaded_file, currency_symbol, contamination, parser_type
+    return page, uploaded_file, currency_symbol, contamination
 
 
 # ─── Data Loading ─────────────────────────────────────────────────────────────
-def load_data(uploaded_file, currency_symbol, contamination, parser_type):
-    """Load data and run the full pipeline."""
+def load_data(uploaded_file, currency_symbol, contamination):
+    """
+    Load data from uploaded file (any format) or sample data.
+    Returns (raw_dataframe, parser_warnings).
+    """
     sample_path = os.path.join(os.path.dirname(__file__), "data", "transactions.csv")
+    parser_warnings = []
 
     # Generate sample data if it doesn't exist
     if not os.path.exists(sample_path) and uploaded_file is None:
@@ -286,16 +299,34 @@ def load_data(uploaded_file, currency_symbol, contamination, parser_type):
             df_gen = generate_dataset()
             save_dataset(df_gen)
 
-    # Load data
+    # Load data via unified parser or direct CSV
     if uploaded_file is not None:
-        df_raw = load_from_dataframe(pd.read_csv(uploaded_file), parser_type=parser_type)
+        with st.spinner(f"📄 Parsing {uploaded_file.name}..."):
+            parse_result = parse_file(uploaded_file)
+            parser_warnings.extend(parse_result.warnings)
+
+            if not parse_result.success or len(parse_result.df) == 0:
+                st.error("❌ Could not extract transactions from the uploaded file.")
+                with st.expander("Parser Details", expanded=True):
+                    for w in parse_result.warnings:
+                        st.write(w)
+                st.info(
+                    "**Supported formats:** CSV, Excel (.xlsx), PDF (GPay, PhonePe, bank statements)\n\n"
+                    "Ensure your file has at least date and amount data."
+                )
+                st.stop()
+
+            df_raw = parse_result.df
     else:
         if not os.path.exists(sample_path):
-            st.error("Sample data not found. Please generate it or upload a CSV.")
+            st.error("Sample data not found. Please generate it or upload a file.")
             st.stop()
-        df_raw = load_csv(sample_path, parser_type="Generic (Default)")
+        try:
+            df_raw = pd.read_csv(sample_path, encoding="utf-8")
+        except UnicodeDecodeError:
+            df_raw = pd.read_csv(sample_path, encoding="latin-1")
 
-    return df_raw
+    return df_raw, parser_warnings
 
 
 # ─── Helper Functions ─────────────────────────────────────────────────────────
@@ -318,13 +349,14 @@ def plot_theme() -> dict:
 
 CATEGORY_COLORS = {
     "food": "#F87171",
-    "shopping": "#7C9CFF",
+    "shopping": "#60A5FA",
+    "rent": "#A78BFA",
     "transport": "#34D399",
     "bills": "#FBBF24",
     "entertainment": "#F472B6",
-    "health": "#A7F3D0",
+    "health": "#22C55E",
     "education": "#93C5FD",
-    "rent": "#C084FC",
+    "others": "#64748B",
     "uncategorized": "#9CA3AF",
 }
 
@@ -500,11 +532,13 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
         st.plotly_chart(fig_trend, use_container_width=True)
 
     with col_donut:
-        st.markdown('<p class="section-header" style="margin-top: 1rem;">💿 Category Breakdown</p>', unsafe_allow_html=True)
-        cat_totals = df.groupby("category")["amount"].sum().reset_index()
+        st.markdown('<p class="section-header" style="margin-top: 1rem;">💿 Spending by Category</p>', unsafe_allow_html=True)
+        # Only use debit transactions for expense category breakdown
+        debit_df = df[df["type"] == "debit"]
+        cat_totals = debit_df.groupby("category")["amount"].sum().reset_index()
         total_spend = cat_totals["amount"].sum()
         
-        colors = [CATEGORY_COLORS.get(c, "#6366F1") for c in cat_totals["category"]]
+        colors = [CATEGORY_COLORS.get(c.lower(), "#6366F1") for c in cat_totals["category"]]
         
         # Intelligent Center text formatting
         center_text = f"Total Spend<br><span style='font-size: 24px; color: #F8FAFC; font-weight: bold;'>{currency}{total_spend:,.0f}</span>"
@@ -1116,7 +1150,7 @@ def main():
                 st.rerun()
             st.stop()
 
-    page, uploaded_file, currency_symbol, contamination, parser_type = render_sidebar()
+    page, uploaded_file, currency_symbol, contamination = render_sidebar()
     with st.sidebar:
         if st.session_state.get("guest_mode", False):
             if st.button("Exit Guest Mode / Log In"):
@@ -1125,19 +1159,102 @@ def main():
         else:
             authenticator.logout("Logout", "sidebar")
 
-    # Load data
-    df_raw = load_data(uploaded_file, currency_symbol, contamination, parser_type)
+    # Load data (multi-format: CSV, Excel, PDF)
+    df_raw, parser_warnings = load_data(uploaded_file, currency_symbol, contamination)
 
-    # Run pipeline (cached)
+    # Run pipeline (cached) — NEVER crashes
     with st.spinner("🧠 Running anomaly detection pipeline..."):
         try:
-            df, profile, scorer, insights_gen, detector = run_pipeline(
+            df, profile, scorer, insights_gen, detector, pipeline_warnings = run_pipeline(
                 df_raw, currency_symbol, contamination
             )
-        except ValueError as e:
-            st.error(f"Data error: {e}")
-            st.info("Please ensure your CSV has columns: `date`, `amount`, `category`, `merchant`")
+        except Exception as e:
+            st.error(f"Pipeline error: {e}")
+            st.info("Your CSV may be in an unsupported format. Ensure it has at least a date and amount column.")
             st.stop()
+
+    # ── Show Data Quality & Parser Warnings ────────────────────────────
+    all_system_warnings = parser_warnings + pipeline_warnings
+    if all_system_warnings:
+        with st.sidebar:
+            st.divider()
+            with st.expander(f"📋 Data Quality ({len(all_system_warnings)} notes)", expanded=False):
+                for w in all_system_warnings:
+                    if w.startswith("❌"):
+                        st.error(w)
+                    elif w.startswith("⚠️"):
+                        st.warning(w)
+                    elif w.startswith("✅"):
+                        st.success(w)
+                    elif w.startswith("📊") or w.startswith("📄") or w.startswith("📂"):
+                        st.info(w)
+                    elif w.startswith("🔄") or w.startswith("🤖"):
+                        st.info(w)
+                    else:
+                        st.info(w)
+
+    # ── Show Classification Summary ───────────────────────────────────
+    if uploaded_file is not None:
+        cls_summary = get_classification_summary(df)
+        if cls_summary.get("rule", 0) > 0 or cls_summary.get("model", 0) > 0 or cls_summary.get("user", 0) > 0:
+            with st.sidebar:
+                with st.expander("🏷️ Category Classification", expanded=False):
+                    st.markdown(f"""
+                    | Source | Count |
+                    |--------|-------|
+                    | 📌 Original | {cls_summary.get('original', 0)} |
+                    | 👤 User Override | {cls_summary.get('user', 0)} |
+                    | ✅ Rule Engine | {cls_summary.get('rule', 0)} |
+                    | 🤖 ML Model | {cls_summary.get('model', 0)} |
+                    | ⬜ Default | {cls_summary.get('default', 0)} |
+                    """)
+                    st.caption(
+                        f"Confidence: {cls_summary.get('manual_confidence', 0)} Manual · "
+                        f"{cls_summary.get('high_confidence', 0)} High · "
+                        f"{cls_summary.get('medium_confidence', 0)} Medium · "
+                        f"{cls_summary.get('low_confidence', 0)} Low"
+                    )
+                    
+    # ── User Override UI (Adaptive System) ────────────────────────────
+    if uploaded_file is not None:
+        # Get merchants that are uncategorized, 'others', or have low confidence
+        low_conf_mask = (df["category_confidence"] == "Low") | (df["category"].str.lower().isin(["uncategorized", "others"]))
+        low_conf_df = df[low_conf_mask]
+        
+        if len(low_conf_df) > 0:
+            with st.sidebar:
+                with st.expander("⚠️ Needs Categorization", expanded=True):
+                    st.caption("Teach the system mapping for unknown merchants.")
+                    from src.category_classifier import load_mapping, save_mapping, normalize_merchant
+                    user_mapping = load_mapping()
+                    unique_merchants = low_conf_df["merchant"].unique()
+                    
+                    with st.form("categorize_form"):
+                        updates = {}
+                        for merchant in unique_merchants[:15]: # Cap at 15 for UI layout
+                            current_cat = df[df["merchant"] == merchant]["category"].iloc[0].lower()
+                            opts = ["food", "shopping", "transport", "bills", "rent", "entertainment", "health", "education", "transfer", "investment", "others"]
+                            idx = opts.index(current_cat) if current_cat in opts else len(opts) - 1
+                            
+                            new_cat = st.selectbox(
+                                f"💳 {merchant}",
+                                opts,
+                                index=idx,
+                                key=f"cat_ui_{merchant}"
+                            )
+                            updates[merchant] = new_cat
+                        
+                        if len(unique_merchants) > 15:
+                            st.caption(f"... and {len(unique_merchants) - 15} more.")
+                            
+                        if st.form_submit_button("Save Preferences"):
+                            if st.session_state.get("guest_mode", False):
+                                st.warning("Database saves disabled in Guest Mode.")
+                            else:
+                                for m, c in updates.items():
+                                    user_mapping[normalize_merchant(m)] = c
+                                save_mapping(user_mapping)
+                                st.success("Saved! Reload to see changes.")
 
     # Route to page
     if "Overview" in page:
