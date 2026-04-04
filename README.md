@@ -128,35 +128,38 @@ PFAD is optimized for local execution—meaning it is fast, private, and deeply 
 
 ## 🚀 Getting Started
 
-### 1. Installation
-Clone the repository and spin up an isolated virtual environment:
+### 1. Zero-Friction Launch (Docker)
+PFAD is built for autonomous self-hosting via Docker.
+
 ```bash
 git clone https://github.com/Traveller-eng/personal-finance-anomaly-detector.git
 cd personal-finance-anomaly-detector
 
-python -m venv venv
-source venv/Scripts/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# Set up local authentication
+cp config_example.yaml config.yaml 
+
+# Build and deploy the engine
+docker-compose up -d
 ```
 
-### 2. Authentication Setup
-
-PFAD uses local authentication for security.
-
-1. Create a `config.yaml` file in the root directory
-2. Add your credentials using hashed passwords
-3. Restart the app
-
-Example configuration is provided in `config_example.yaml`. You can quickly generate your own secure credentials natively by executing our onboard hashing utility:
-```bash
-python src/utils/hash_gen.py
-```
+The dashboard will instantly deploy and map securely to `http://localhost:8502`.
 
 > **Guest Mode**: PFAD supports a fully sandboxed "Quick Evaluation" Guest Mode. Click "Continue as Guest" at the login portal to bypass authentication and safely explore the engine in a Read-Only state where structural database saves are automatically disabled.
 
-### 3. Launching the Hub
-Execute the engine locally. All routing and data manipulation runs strictly on-device out of the box.
+---
+
+### Alternative: Local Python Execution
+
+If you prefer running the engine manually outside of a container pipeline:
+
+1. Copy `config_example.yaml` to `config.yaml`.
+2. Generate secure hashed credentials natively: `python src/utils/hash_gen.py`
+3. Spin up an isolated virtual environment:
+
 ```bash
+python -m venv venv
+source venv/Scripts/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 streamlit run app.py
 ```
 

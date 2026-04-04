@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  pfad:
+    build: .
+    container_name: pfad_app
+    ports:
+      - "8502:8501" # Exposing on port 8502 to match existing setup
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Move SQLite DB into the mapped data/ folder to prevent empty directories from Docker bind loops
+      - PFAD_TEST_DB=/app/data/pfad.db
+    volumes:
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml
+    restart: unless-stopped
