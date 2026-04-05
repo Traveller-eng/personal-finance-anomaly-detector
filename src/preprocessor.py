@@ -81,7 +81,19 @@ def _parse_dates(df: pd.DataFrame) -> pd.DataFrame:
     if "date" not in df.columns:
         df["date"] = pd.NaT
 
-    df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
+    raw_dates = df["date"].copy()
+    parsed = pd.to_datetime(raw_dates, errors="coerce", format="mixed", dayfirst=True)
+
+    # ISO-like dates should prefer year-first parsing to avoid 2026-01-02 -> 2026-02-01 flips.
+    iso_mask = raw_dates.astype(str).str.match(r"^\d{4}-\d{1,2}-\d{1,2}$", na=False)
+    if iso_mask.any():
+        parsed.loc[iso_mask] = pd.to_datetime(raw_dates.loc[iso_mask], errors="coerce", format="%Y-%m-%d")
+
+    iso_slash_mask = raw_dates.astype(str).str.match(r"^\d{4}/\d{1,2}/\d{1,2}$", na=False)
+    if iso_slash_mask.any():
+        parsed.loc[iso_slash_mask] = pd.to_datetime(raw_dates.loc[iso_slash_mask], errors="coerce", format="%Y/%m/%d")
+
+    df["date"] = parsed
 
     null_dates = df["date"].isnull().sum()
     if null_dates > 0:

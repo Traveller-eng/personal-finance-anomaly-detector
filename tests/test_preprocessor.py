@@ -41,6 +41,7 @@ class TestDateParsing:
         df = make_raw_df(date=["2025-04-01", "2025-04-02", "2025-04-03"])
         result = clean_data(df)
         assert pd.api.types.is_datetime64_any_dtype(result["date"])
+        assert result["date"].dt.strftime("%Y-%m-%d").tolist() == ["2025-04-01", "2025-04-02", "2025-04-03"]
 
     def test_slash_format(self):
         df = make_raw_df(date=["01/04/2025", "02/04/2025", "03/04/2025"])

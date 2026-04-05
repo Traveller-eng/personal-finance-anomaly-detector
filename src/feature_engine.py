@@ -10,6 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from src.transaction_schema import ensure_schema_columns
+
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """Master feature engineering pipeline."""
@@ -23,7 +25,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
                 empty[column] = []
         return empty
 
-    df = df.copy().sort_values("date").reset_index(drop=True)
+    df = ensure_schema_columns(df.copy())
+    df = df.sort_values("date").reset_index(drop=True)
     if "merchant_normalized" not in df.columns:
         df["merchant_normalized"] = df["merchant"].astype(str).str.lower().str.strip()
     if "entity_type" not in df.columns:
@@ -86,15 +89,15 @@ def _add_daily_context(df: pd.DataFrame) -> pd.DataFrame:
 
 def _add_category_history(df: pd.DataFrame) -> pd.DataFrame:
     """Add category share and prior category spend baselines."""
+    df = ensure_schema_columns(df.copy())
+    df = df.sort_values(["category", "date"]).reset_index(drop=True)
 
-    def enrich_group(group: pd.DataFrame) -> pd.DataFrame:
-        group = group.sort_values("date").copy()
-        prior_amounts = group["amount"].shift(1)
-        group["category_mean_prior"] = prior_amounts.expanding().mean()
-        group["category_std_prior"] = prior_amounts.expanding().std().fillna(0.0)
-        return group
+    prior_amounts = df.groupby("category")["amount"].shift(1)
+    df["category_mean_prior"] = prior_amounts.groupby(df["category"]).expanding().mean().reset_index(level=0, drop=True)
+    df["category_std_prior"] = (
+        prior_amounts.groupby(df["category"]).expanding().std().reset_index(level=0, drop=True).fillna(0.0)
+    )
 
-    df = df.groupby("category", group_keys=False).apply(enrich_group)
     df = df.sort_values("date").reset_index(drop=True)
 
     df["amount_zscore"] = (

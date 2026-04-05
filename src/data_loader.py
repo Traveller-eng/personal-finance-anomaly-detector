@@ -25,6 +25,22 @@ logger = logging.getLogger("pfad.data_loader")
 # ─── Canonical columns the pipeline requires ─────────────────────────────────
 REQUIRED_COLUMNS = ["date", "amount", "category", "merchant", "type"]
 
+
+def _parse_dates_safely(series: pd.Series) -> pd.Series:
+    """Parse mixed date formats while preserving ISO-style year-month-day strings."""
+    raw = series.copy()
+    parsed = pd.to_datetime(raw, errors="coerce", format="mixed", dayfirst=True)
+
+    iso_dash_mask = raw.astype(str).str.match(r"^\d{4}-\d{1,2}-\d{1,2}$", na=False)
+    if iso_dash_mask.any():
+        parsed.loc[iso_dash_mask] = pd.to_datetime(raw.loc[iso_dash_mask], errors="coerce", format="%Y-%m-%d")
+
+    iso_slash_mask = raw.astype(str).str.match(r"^\d{4}/\d{1,2}/\d{1,2}$", na=False)
+    if iso_slash_mask.any():
+        parsed.loc[iso_slash_mask] = pd.to_datetime(raw.loc[iso_slash_mask], errors="coerce", format="%Y/%m/%d")
+
+    return parsed
+
 # ─── Fuzzy alias map ──────────────────────────────────────────────────────────
 # Each canonical column has a list of known alternative names (lowercase).
 # Matched by exact hit first, then substring containment.
@@ -180,7 +196,7 @@ def clean_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 
     # ── Parse Date ────────────────────────────────────────────────────────
     if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
+        df["date"] = _parse_dates_safely(df["date"])
         null_dates = df["date"].isna().sum()
         if null_dates > 0:
             warnings.append(

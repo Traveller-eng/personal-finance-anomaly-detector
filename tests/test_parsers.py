@@ -17,6 +17,10 @@ from src.parsers.csv_parser import parse_csv
 from src.parsers.unified_parser import parse_file
 from src.parsers.pdf_parser import extract_transactions_from_text, _parse_compact_gpay_lines
 from src.entity_resolution import detect_entity_type, normalize_merchant
+from src.data_loader import load_from_dataframe
+from src.preprocessor import clean_data
+from src.category_classifier import classify_categories
+from src.feature_engine import engineer_features
 
 
 def test_indian_bank_csv():
@@ -259,6 +263,30 @@ def test_compact_merchant_entity_resolution():
     print("\n✅ TEST 8 PASSED: Compact merchants are resolved more safely")
 
 
+def test_sparse_upload_pipeline_keeps_category_through_features():
+    """Minimal uploads should not crash in feature engineering."""
+    print("\n" + "="*70)
+    print("TEST 9: Sparse Upload Pipeline Stability")
+    print("="*70)
+
+    raw = pd.DataFrame({
+        "date": ["2026-01-01", "2026-01-02"],
+        "amount": [100, 200],
+        "merchant": ["A", "B"],
+    })
+
+    loaded, _ = load_from_dataframe(raw.copy())
+    cleaned = clean_data(loaded)
+    classified, _ = classify_categories(cleaned)
+    featured = engineer_features(classified)
+
+    assert "category" in featured.columns
+    assert "category_share" in featured.columns
+    assert len(featured) == 2
+
+    print("\n✅ TEST 9 PASSED: Sparse uploads no longer crash feature engineering")
+
+
 if __name__ == "__main__":
     test_indian_bank_csv()
     test_missing_category()
@@ -268,6 +296,7 @@ if __name__ == "__main__":
     test_semistructured_text_parser()
     test_compact_gpay_line_parser()
     test_compact_merchant_entity_resolution()
+    test_sparse_upload_pipeline_keeps_category_through_features()
 
     print("\n" + "="*70)
     print("ALL TESTS PASSED ✅")
