@@ -1204,7 +1204,6 @@ def main():
         st.session_state["guest_mode"] = False
 
     if not st.session_state["guest_mode"]:
-        # Render login via auth module (it handles UI automatically)
         authenticator.login()
         
         if st.session_state["authentication_status"] is False:
