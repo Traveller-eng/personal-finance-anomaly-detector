@@ -367,6 +367,30 @@ Important:
 - do not log in with `name` or `email`
 - store only hashed passwords in `config.yaml`
 
+### Streamlit Cloud Deployment Auth
+
+`config.yaml` is intentionally ignored in Git, so cloud deployments should use Streamlit Secrets.
+
+In Streamlit Cloud, open:
+
+`App -> Settings -> Secrets`
+
+Add:
+
+```toml
+[cookie]
+expiry_days = 1
+key = "your_cookie_key"
+name = "pfad_auth"
+
+[credentials.usernames.admin]
+email = "admin@example.com"
+name = "Admin User"
+password = "$2b$12$your_bcrypt_hash_here"
+```
+
+PFAD will automatically load auth config from secrets when `config.yaml` is not present.
+
 ### Run
 
 ```bash

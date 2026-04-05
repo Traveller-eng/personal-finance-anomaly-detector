@@ -47,6 +47,40 @@ from src.health_scorer import HealthScorer
 from src.insights import InsightGenerator
 from src.database import add_expected_transaction, set_budget, get_budgets
 
+
+def _to_plain_dict(value):
+    """Recursively convert Streamlit secrets objects into plain dicts/lists."""
+    if isinstance(value, dict):
+        return {key: _to_plain_dict(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_to_plain_dict(item) for item in value]
+    return value
+
+
+def _load_auth_config() -> tuple[dict | None, str]:
+    """
+    Load authentication config from local file first, then Streamlit secrets.
+
+    Returns:
+        (config_dict_or_none, source_label)
+    """
+    if os.path.exists("config.yaml"):
+        with open("config.yaml", "r", encoding="utf-8") as file:
+            return yaml.load(file, Loader=SafeLoader), "config.yaml"
+
+    try:
+        if "auth_config" in st.secrets:
+            return _to_plain_dict(dict(st.secrets["auth_config"])), "st.secrets.auth_config"
+        if "credentials" in st.secrets and "cookie" in st.secrets:
+            return {
+                "credentials": _to_plain_dict(dict(st.secrets["credentials"])),
+                "cookie": _to_plain_dict(dict(st.secrets["cookie"])),
+            }, "st.secrets"
+    except Exception:
+        pass
+
+    return None, "missing"
+
 # ─── Page Configuration ───────────────────────────────────────────────────────
 st.set_page_config(
     page_title="PFAD — Personal Finance Anomaly Detector",
@@ -1132,24 +1166,39 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
 
 # ─── Main App ─────────────────────────────────────────────────────────────────
 def main():
-    if not os.path.exists("config.yaml"):
+    config, config_source = _load_auth_config()
+    if config is None:
         st.error("🔒 No authentication config found.")
         st.markdown("""
         **Security Engine Active:** PFAD requires local authentication.
-        
-        Please create a `config.yaml` file with your credentials. Example configuration is provided in `config_example.yaml`.
+
+        Provide credentials through one of these options:
+
+        1. Local run: create `config.yaml` (see `config_example.yaml`)
+        2. Streamlit Cloud: add this structure in **App -> Settings -> Secrets**
+
+        ```toml
+        [cookie]
+        expiry_days = 1
+        key = "your_cookie_key"
+        name = "pfad_auth"
+
+        [credentials.usernames.admin]
+        email = "admin@example.com"
+        name = "Admin User"
+        password = "$2b$12$your_bcrypt_hash_here"
+        ```
         """)
         st.stop()
-        
-    with open("config.yaml", "r", encoding="utf-8") as file:
-        config = yaml.load(file, Loader=SafeLoader)
-        
+
     authenticator = stauth.Authenticate(
         config['credentials'],
         config['cookie']['name'],
         config['cookie']['key'],
         config['cookie']['expiry_days'],
     )
+    logger_msg = f"Auth config loaded from {config_source}"
+    print(f"[PFAD] {logger_msg}")
     
     if "guest_mode" not in st.session_state:
         st.session_state["guest_mode"] = False
