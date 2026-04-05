@@ -26,7 +26,27 @@ import re
 import logging
 from dataclasses import dataclass, field
 
+from src.data_loader import auto_map_columns, clean_dataframe
+
 logger = logging.getLogger("pfad.parsers.pdf")
+
+DATE_PATTERN = re.compile(
+    r"("
+    r"\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}"
+    r"|"
+    r"\d{1,2}\s*\w{3,9},?\s*\d{2,4}"
+    r")",
+    re.IGNORECASE,
+)
+AMOUNT_PATTERN = re.compile(r"(?:₹|Rs\.?|INR)\s?([\d,]+\.?\d*)", re.IGNORECASE)
+TYPE_PATTERN = re.compile(
+    r"(Paid\s*to|Sent\s*to|Received\s*from|Received|Debited\s*to|Credited\s*from|Withdrawal|Deposit)",
+    re.IGNORECASE,
+)
+NOISE_LINE_PATTERN = re.compile(
+    r"^(UPI\s*Transaction\s*ID|UTR|Paid\s*by|Debited\s*from|Credited\s*to|Paid\s*toHDFC|From\s*bank\s*account|To\s*bank\s*account|Status|Ref(?:erence)?\s*ID)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -139,7 +159,7 @@ def _clean_pdf_text(text: str) -> str:
     text = re.sub(r"UTR[:\s]*\S+", "", text)
 
     # Remove bank account references that pollute merchant extraction
-    text = re.sub(r"Paid by\s+\w+\s+Bank\s+\d+", "", text)
+    text = re.sub(r"Paid by\s+.*", "", text)
     text = re.sub(r"Debited from\s+.*", "", text)
     text = re.sub(r"Credited to\s+.*", "", text)
 
@@ -150,6 +170,187 @@ def _clean_pdf_text(text: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)
 
     return text
+
+
+def _normalize_amount_str(amount_str: str) -> str:
+    """Normalize currency strings to a plain numeric value string."""
+    if amount_str is None:
+        return ""
+    amt = str(amount_str).strip()
+    amt = re.sub(r"^(?:₹|Rs\.?|INR)\s*", "", amt, flags=re.IGNORECASE)
+    amt = amt.replace(",", "")
+    return amt
+
+
+def _normalize_merchant_candidate(line: str) -> str:
+    candidate = re.sub(r"\s+", " ", str(line or "").strip(" :-"))
+    candidate = re.sub(
+        r"^(Paid\s*to|Sent\s*to|Received\s*from|Received|Debited\s*to|Credited\s*from)\s*",
+        "",
+        candidate,
+        flags=re.IGNORECASE,
+    )
+    candidate = re.sub(r"(?:₹|Rs\.?|INR)\s?[\d,]+\.?\d*", "", candidate, flags=re.IGNORECASE)
+    candidate = candidate.strip(" -:")
+    if not candidate or NOISE_LINE_PATTERN.match(candidate):
+        return ""
+    if candidate.lower() in {"transaction", "payment", "transfer", "upi"}:
+        return ""
+    return candidate[:100]
+
+
+def _extract_transaction_blocks(text: str) -> list[str]:
+    lines = [line.strip() for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    if not lines:
+        return []
+
+    blocks: list[list[str]] = []
+    current: list[str] = []
+
+    for line in lines:
+        if DATE_PATTERN.search(line) and current:
+            blocks.append(current)
+            current = [line]
+        else:
+            current.append(line)
+
+    if current:
+        blocks.append(current)
+
+    normalized_blocks = ["\n".join(block).strip() for block in blocks if len(block) >= 2]
+    return normalized_blocks
+
+
+def _infer_merchant_from_block(block_lines: list[str]) -> str:
+    for line in block_lines:
+        if NOISE_LINE_PATTERN.match(line):
+            continue
+        if DATE_PATTERN.search(line) and len(line.split()) <= 4:
+            continue
+        normalized = _normalize_merchant_candidate(line)
+        if normalized:
+            return normalized
+    return "Unknown (PDF extract)"
+
+
+def _parse_semistructured_blocks(text: str) -> PDFParseResult:
+    result = PDFParseResult(df=pd.DataFrame(), method="semistructured_text")
+    blocks = _extract_transaction_blocks(text)
+
+    if not blocks:
+        return result
+
+    data = []
+    for block in blocks:
+        block_lines = [line.strip() for line in block.splitlines() if line.strip()]
+        block_text = "\n".join(block_lines)
+
+        date_match = DATE_PATTERN.search(block_text)
+        amount_matches = AMOUNT_PATTERN.findall(block_text)
+        if not date_match or not amount_matches:
+            continue
+
+        type_match = TYPE_PATTERN.search(block_text)
+        merchant = _infer_merchant_from_block(block_lines[1:] if len(block_lines) > 1 else block_lines)
+
+        try:
+            amount = float(_normalize_amount_str(amount_matches[-1]))
+        except ValueError:
+            continue
+
+        tx_type = "debit"
+        if type_match:
+            label = type_match.group(1).lower()
+            if "receive" in label or "credit" in label or "deposit" in label:
+                tx_type = "credit"
+
+        data.append(
+            {
+                "date": date_match.group(1).strip(),
+                "merchant": merchant,
+                "amount": amount,
+                "type": tx_type,
+                "category": "uncategorized",
+            }
+        )
+
+    if data:
+        df = pd.DataFrame(data)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
+        df = df.dropna(subset=["date"])
+        result.df = df
+        result.warnings.append(
+            f"✅ Semi-structured statement parser matched {len(df)} transaction blocks"
+        )
+
+    return result
+
+
+def _parse_compact_gpay_lines(text: str) -> PDFParseResult:
+    """
+    Handle compact GPay statements where words are concatenated, e.g.
+    `01Jan,2026 PaidtoKESHARWANIBROTHERS ₹100`.
+    """
+    result = PDFParseResult(df=pd.DataFrame(), method="gpay_compact_lines")
+    line_pattern = re.compile(
+        r"^"
+        r"(?P<date>\d{1,2}\w{3,9},\d{4})"
+        r"\s+"
+        r"(?P<label>Paidto|Sentto|Receivedfrom|Received)"
+        r"(?P<merchant>.*?)"
+        r"\s+"
+        r"(?:₹|Rs\.?|INR)\s?(?P<amount>[\d,]+\.?\d*)"
+        r"$",
+        re.IGNORECASE,
+    )
+
+    rows = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("Transaction statement") or line.startswith("Date&time"):
+            continue
+        if line.startswith("Note:") or line.startswith("Page"):
+            continue
+
+        match = line_pattern.match(line)
+        if not match:
+            continue
+
+        merchant = _normalize_merchant_candidate(match.group("merchant"))
+        if not merchant:
+            continue
+
+        label = match.group("label").lower()
+        tx_type = "credit" if "received" in label else "debit"
+
+        try:
+            amount = float(_normalize_amount_str(match.group("amount")))
+        except ValueError:
+            continue
+
+        rows.append(
+            {
+                "date": match.group("date"),
+                "merchant": merchant,
+                "amount": amount,
+                "type": tx_type,
+                "category": "uncategorized",
+            }
+        )
+
+    if rows:
+        df = pd.DataFrame(rows)
+        df["date"] = pd.to_datetime(df["date"], format="%d%b,%Y", errors="coerce")
+        df = df.dropna(subset=["date"])
+        result.df = df
+        result.warnings.append(
+            f"✅ Compact GPay line parser matched {len(df)} transactions"
+        )
+
+    return result
 
 
 # ─── Layer 2: GPay / UPI Regex Patterns ───────────────────────────────────────
@@ -172,12 +373,12 @@ def _parse_gpay_pattern(text: str) -> PDFParseResult:
 
     # ── Primary Pattern: date → type → merchant → ₹amount
     primary_pattern = r"""
-        (\d{2}\s\w{3},?\s\d{4})        # date: 01 Jan, 2026  or  01 Jan 2026
-        .*?                             # skip time, spacing, noise
-        (Paid\s+to|Received\s+from)     # transaction type
-        \s+(.*?)                         # merchant name (lazy capture)
-        \n.*?                           # skip remaining lines until amount
-        ₹\s?([\d,]+\.?\d*)              # amount: ₹100 or ₹1,200.50
+        (\d{1,2}\s*\w{3,9},?\s*\d{4})    # date: 1 Jan 2026 / 01Jan,2026 / 01 January 2026
+        .*?                                   # skip time, spacing, noise
+        (Paid\s*to|Sent\s*to|Received\s*from|Received)  # transaction type
+        \s*(.*?)                              # merchant name (lazy capture)
+        [\r\n]+.*?                          # skip remaining lines until amount
+        (?:₹|Rs\.?|INR)\s?([\d,]+\.?\d*)  # amount: ₹100 or Rs.1,200.50 or INR 100
     """
 
     matches = re.findall(primary_pattern, text, re.DOTALL | re.VERBOSE | re.IGNORECASE)
@@ -186,12 +387,12 @@ def _parse_gpay_pattern(text: str) -> PDFParseResult:
         data = []
         for date_str, txn_type, merchant, amount_str in matches:
             try:
-                amount = float(amount_str.replace(",", ""))
+                amount = float(_normalize_amount_str(amount_str))
                 data.append({
                     "date": date_str.strip(),
                     "merchant": merchant.strip(),
                     "amount": amount,
-                    "type": "debit" if "paid" in txn_type.lower() else "credit",
+                    "type": "debit" if "paid" in txn_type.lower() or "sent" in txn_type.lower() else "credit",
                     "category": "uncategorized",
                 })
             except (ValueError, AttributeError):
@@ -218,12 +419,12 @@ def _parse_gpay_fallback(text: str) -> PDFParseResult:
 
     # More lenient: just date + ₹amount, try to find merchant between
     fallback_pattern = r"""
-        (\d{2}\s\w{3},?\s\d{4})        # date
-        [\s\S]*?                        # anything
-        (Paid\s+to|Received\s+from)     # type
-        \s+(.+?)                        # merchant (greedy until newline)
-        [\s\S]*?                        # skip
-        ₹\s?([\d,]+)                    # amount (no decimals required)
+        (\d{1,2}\s*\w{3,9},?\s*\d{4})    # date
+        [\s\S]*?                             # anything
+        (Paid\s*to|Sent\s*to|Received\s*from|Received)  # type
+        \s*(.+?)                              # merchant (greedy until newline)
+        [\s\S]*?                             # skip
+        (?:₹|Rs\.?|INR)\s?([\d,]+\.?\d*)  # amount (no decimals required)
     """
 
     matches = re.findall(fallback_pattern, text, re.DOTALL | re.VERBOSE | re.IGNORECASE)
@@ -232,13 +433,13 @@ def _parse_gpay_fallback(text: str) -> PDFParseResult:
         data = []
         for date_str, txn_type, merchant, amount_str in matches:
             try:
-                amount = float(amount_str.replace(",", ""))
+                amount = float(_normalize_amount_str(amount_str))
                 if amount > 0:
                     data.append({
                         "date": date_str.strip(),
                         "merchant": merchant.strip().split("\n")[0],  # first line only
                         "amount": amount,
-                        "type": "debit" if "paid" in txn_type.lower() else "credit",
+                        "type": "debit" if "paid" in txn_type.lower() or "sent" in txn_type.lower() else "credit",
                         "category": "uncategorized",
                     })
             except (ValueError, AttributeError):
@@ -263,12 +464,12 @@ def _parse_phonepe_pattern(text: str) -> PDFParseResult:
     result = PDFParseResult(df=pd.DataFrame(), method="phonepe")
 
     pattern = r"""
-        (\d{1,2}\s\w{3}\s\d{4})       # date: 1 Jan 2026
+        (\d{1,2}\s*\w{3,9},?\s*\d{4})    # date: 1 Jan 2026 / 01Jan,2026 / 01 January 2026
         .*?
-        (Sent\s+to|Received\s+from)    # type
-        \s+(.*?)                        # merchant
+        (Sent\s*to|Received\s*from|Paid\s*to|Received)    # type
+        \s*(.*?)                        # merchant
         .*?
-        ₹\s?([\d,]+\.?\d*)             # amount
+        (?:₹|Rs\.?|INR)\s?([\d,]+\.?\d*)             # amount
     """
 
     matches = re.findall(pattern, text, re.DOTALL | re.VERBOSE | re.IGNORECASE)
@@ -277,13 +478,13 @@ def _parse_phonepe_pattern(text: str) -> PDFParseResult:
         data = []
         for date_str, txn_type, merchant, amount_str in matches:
             try:
-                amount = float(amount_str.replace(",", ""))
+                amount = float(_normalize_amount_str(amount_str))
                 if amount > 0:
                     data.append({
                         "date": date_str.strip(),
                         "merchant": merchant.strip().split("\n")[0],
                         "amount": amount,
-                        "type": "debit" if "sent" in txn_type.lower() else "credit",
+                        "type": "debit" if "sent" in txn_type.lower() or "paid" in txn_type.lower() else "credit",
                         "category": "uncategorized",
                     })
             except (ValueError, AttributeError):
@@ -310,8 +511,8 @@ def _parse_generic_amounts(text: str) -> PDFParseResult:
 
     # Find dates
     date_pattern = r"(\d{1,2}[\s/\-]\w{3}[\s/\-,]\s?\d{2,4})"
-    # Find amounts with ₹
-    amount_pattern = r"₹\s?([\d,]+\.?\d*)"
+    # Find amounts with ₹, Rs, or INR
+    amount_pattern = r"(?:₹|Rs\.?|INR)\s?([\d,]+\.?\d*)"
 
     dates = re.findall(date_pattern, text, re.IGNORECASE)
     amounts = re.findall(amount_pattern, text)
@@ -345,6 +546,36 @@ def _parse_generic_amounts(text: str) -> PDFParseResult:
             )
 
     return result
+
+
+def extract_transactions_from_text(text: str) -> PDFParseResult:
+    """
+    Public helper for generic document parsing outside native PDFs.
+    Reuses the same layered extraction logic on already-decoded text.
+    """
+    cleaned_text = _clean_pdf_text(text)
+    candidates = [
+        _parse_compact_gpay_lines(cleaned_text),
+        _parse_gpay_pattern(cleaned_text),
+        _parse_gpay_fallback(cleaned_text),
+        _parse_phonepe_pattern(cleaned_text),
+        _parse_semistructured_blocks(cleaned_text),
+        _parse_bank_statement_line(cleaned_text),
+        _parse_generic_amounts(cleaned_text),
+    ]
+
+    best_result = PDFParseResult(df=pd.DataFrame(), method="none")
+    best_confidence = 0.0
+    for candidate in candidates:
+        if len(candidate.df) == 0:
+            continue
+        confidence = _calculate_confidence(candidate, text)
+        candidate.confidence = confidence
+        if confidence >= best_confidence:
+            best_confidence = confidence
+            best_result = candidate
+
+    return best_result
 
 
 def _parse_bank_statement_line(text: str) -> PDFParseResult:
@@ -453,10 +684,24 @@ def _try_table_parse(file) -> PDFParseResult:
 
     # Check if it has enough columns to be a transaction table
     if len(best.columns) >= 3:
-        result.df = best
-        result.warnings.append(
-            f"✅ Table extraction: {len(best)} rows from PDF tables"
-        )
+        df = best.copy()
+        rename_map, map_warnings = auto_map_columns(df)
+        result.warnings.extend(map_warnings)
+
+        if rename_map:
+            df = df.rename(columns=rename_map)
+
+        try:
+            df, clean_warnings = clean_dataframe(df)
+            result.warnings.extend(clean_warnings)
+        except Exception as exc:
+            logger.warning("PDF table cleaning failed: %s", exc)
+
+        if "date" in df.columns and "amount" in df.columns:
+            result.df = df
+            result.warnings.append(
+                f"✅ Table extraction: {len(df)} rows from PDF tables"
+            )
 
     return result
 
@@ -507,9 +752,11 @@ def parse_pdf(file) -> tuple[pd.DataFrame, list[str]]:
 
     # Try parsers in priority order, keep the best result
     parsers = [
+        ("GPay Compact", _parse_compact_gpay_lines),
         ("GPay Primary", _parse_gpay_pattern),
         ("GPay Fallback", _parse_gpay_fallback),
         ("PhonePe", _parse_phonepe_pattern),
+        ("Semi-Structured", _parse_semistructured_blocks),
         ("Bank Statement", _parse_bank_statement_line),
         ("Generic Amount", _parse_generic_amounts),
     ]

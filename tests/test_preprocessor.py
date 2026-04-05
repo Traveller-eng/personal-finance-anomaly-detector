@@ -132,5 +132,31 @@ class TestTemporalFeatures:
         assert dates == sorted(dates)
 
 
+class TestStrictSchema:
+    def test_strict_schema_columns_present(self):
+        df = make_raw_df()
+        result = clean_data(df)
+        required = {
+            "date", "amount", "type", "merchant", "merchant_normalized",
+            "entity_type", "category", "category_confidence", "source", "is_transfer",
+        }
+        assert required.issubset(result.columns)
+
+    def test_person_entity_and_transfer_flag(self):
+        df = make_raw_df(
+            merchant=["Naveen Sharma", "Amazon Retail", "Priya Gupta"],
+            type=["debit", "debit", "credit"],
+        )
+        result = clean_data(df)
+        naveen = result[result["merchant"] == "Naveen Sharma"].iloc[0]
+        amazon = result[result["merchant"] == "Amazon Retail"].iloc[0]
+        priya = result[result["merchant"] == "Priya Gupta"].iloc[0]
+
+        assert naveen["entity_type"] == "person"
+        assert bool(naveen["is_transfer"]) is True
+        assert amazon["entity_type"] == "business"
+        assert priya["entity_type"] == "person"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

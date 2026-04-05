@@ -15,6 +15,8 @@ from src.data_loader import load_from_dataframe, auto_map_columns, clean_datafra
 from src.category_classifier import classify_categories, classify_by_rules
 from src.parsers.csv_parser import parse_csv
 from src.parsers.unified_parser import parse_file
+from src.parsers.pdf_parser import extract_transactions_from_text, _parse_compact_gpay_lines
+from src.entity_resolution import detect_entity_type, normalize_merchant
 
 
 def test_indian_bank_csv():
@@ -125,6 +127,17 @@ def test_category_classifier():
     netflix_cat = result_df[result_df["merchant"] == "Netflix"]["category"].iloc[0]
     assert netflix_cat == "entertainment", f"FAIL: Netflix classified as '{netflix_cat}'"
 
+    # Credit from a person should be isolated as transfer noise
+    person_df = pd.DataFrame({
+        "date": ["2026-01-01"],
+        "amount": [1000],
+        "merchant": ["Naveen Sharma"],
+        "category": ["uncategorized"],
+        "type": ["credit"],
+    })
+    person_result, _ = classify_categories(person_df)
+    assert person_result["category"].iloc[0] == "income_transfer"
+
     print("\n✅ TEST 3 PASSED: Category classification working correctly")
 
 
@@ -184,12 +197,77 @@ def test_full_pipeline_never_crashes():
     print("\n✅ TEST 5 PASSED: No crashes on garbage data")
 
 
+def test_semistructured_text_parser():
+    """Test raw statement-style text parsing without spreadsheet structure."""
+    print("\n" + "="*70)
+    print("TEST 6: Semi-Structured Statement Parsing")
+    print("="*70)
+
+    text = """
+    01 Jan 2026
+    Paid to Blue Tokai Coffee
+    UPI Transaction ID: X1
+    ₹250
+
+    03 Jan 2026
+    Received from Naveen Sharma
+    UPI Transaction ID: X2
+    ₹1200
+    """
+
+    result = extract_transactions_from_text(text)
+    assert len(result.df) == 2, f"FAIL: expected 2 rows, got {len(result.df)}"
+    assert "Blue Tokai Coffee" in result.df["merchant"].tolist()
+    assert set(result.df["type"]) == {"debit", "credit"}
+    print("\n✅ TEST 6 PASSED: Semi-structured text was decoded correctly")
+
+
+def test_compact_gpay_line_parser():
+    """Test compact GPay PDF text where labels are merged without spaces."""
+    print("\n" + "="*70)
+    print("TEST 7: Compact GPay Line Parsing")
+    print("="*70)
+
+    text = """
+    01Jan,2026 PaidtoKESHARWANIBROTHERS ₹100
+    UPITransactionID:116503119714
+    PaidbyHDFCBank5061
+    02Jan,2026 ReceivedfromNaveenSharma ₹1,000
+    UPITransactionID:600221102792
+    PaidtoHDFCBank5061
+    """
+
+    result = _parse_compact_gpay_lines(text)
+    assert len(result.df) == 2, f"FAIL: expected 2 rows, got {len(result.df)}"
+    assert result.df["amount"].tolist() == [100.0, 1000.0]
+    assert result.df["type"].tolist() == ["debit", "credit"]
+    print("\n✅ TEST 7 PASSED: Compact GPay lines parsed correctly")
+
+
+def test_compact_merchant_entity_resolution():
+    """Compact merchant strings should not be over-classified as personal transfers."""
+    print("\n" + "="*70)
+    print("TEST 8: Compact Merchant Entity Resolution")
+    print("="*70)
+
+    assert normalize_merchant("NaveenSharma") == "naveen sharma"
+    assert normalize_merchant("JioPrepaidRecharges") == "jio prepaid recharges"
+    assert detect_entity_type("JioPrepaidRecharges") == "business"
+    assert detect_entity_type("NaveenSharma") == "person"
+    assert detect_entity_type("KESHARWANIBROTHERS") != "person"
+
+    print("\n✅ TEST 8 PASSED: Compact merchants are resolved more safely")
+
+
 if __name__ == "__main__":
     test_indian_bank_csv()
     test_missing_category()
     test_category_classifier()
     test_messy_amounts()
     test_full_pipeline_never_crashes()
+    test_semistructured_text_parser()
+    test_compact_gpay_line_parser()
+    test_compact_merchant_entity_resolution()
 
     print("\n" + "="*70)
     print("ALL TESTS PASSED ✅")

@@ -289,7 +289,7 @@ def load_from_dataframe(
     # Guard: empty DataFrame
     if df is None or len(df.columns) == 0:
         all_warnings.append("⚠️ Empty DataFrame received — no data to process")
-        return pd.DataFrame(columns=["date", "amount", "category", "merchant"]), all_warnings
+        return pd.DataFrame(columns=["date", "amount", "category", "merchant", "type"]), all_warnings
 
     # Normalize column names
     df.columns = df.columns.str.strip().str.lower()
@@ -335,6 +335,12 @@ def load_from_dataframe(
             print(f"  [DataLoader] {w.encode('ascii', 'replace').decode()}")
 
     return df, all_warnings
+
+
+def parse_generic_csv(df: pd.DataFrame) -> pd.DataFrame:
+    """Backward-compatible helper used by older tests."""
+    cleaned_df, _ = load_from_dataframe(df, parser_type="Generic (Default)")
+    return cleaned_df
 
 
 def load_csv(

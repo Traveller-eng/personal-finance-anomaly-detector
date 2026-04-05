@@ -14,10 +14,10 @@ USAGE:
     warnings = result.warnings
 
 SUPPORTED:
-    .csv   → csv_parser
-    .xlsx  → excel_parser
-    .xls   → excel_parser
-    .pdf   → pdf_parser (layered regex + table extraction)
+    .csv/.tsv          → delimited parser
+    .xlsx/.xls         → excel parser
+    .pdf               → layered document parser
+    .txt/.json/.log    → generic document parser
 """
 
 import pandas as pd
@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from .csv_parser import parse_csv
 from .excel_parser import parse_excel
 from .pdf_parser import parse_pdf
+from .text_parser import parse_text_document
 
 logger = logging.getLogger("pfad.parsers.unified")
 
@@ -36,6 +37,10 @@ SUPPORTED_EXTENSIONS = {
     ".xlsx": "Excel",
     ".xls": "Excel",
     ".pdf": "PDF",
+    ".txt": "Text",
+    ".json": "Text",
+    ".tsv": "Text",
+    ".log": "Text",
 }
 
 
@@ -56,6 +61,10 @@ class ParseResult:
     file_type: str = "unknown"
     file_name: str = ""
     success: bool = False
+    parse_confidence: float = 0.0
+    expected_rows: int = 0
+    extracted_rows: int = 0
+    fallback_used: bool = False
 
 
 def _detect_file_type(uploaded_file) -> tuple[str, str]:
@@ -104,14 +113,14 @@ def parse_file(uploaded_file) -> ParseResult:
     ext, file_type = _detect_file_type(uploaded_file)
     result.file_type = file_type
 
-    if not ext:
+    if ext:
+        result.warnings.append(f"📂 Detected file type: {file_type} ({ext})")
+    else:
         result.warnings.append(
-            f"❌ Unsupported file format: '{result.file_name}'. "
-            f"Supported: {', '.join(SUPPORTED_EXTENSIONS.keys())}"
+            f"⚠️ Unknown extension for '{result.file_name or 'uploaded file'}' — trying generic document parsing"
         )
-        return result
-
-    result.warnings.append(f"📂 Detected file type: {file_type} ({ext})")
+        file_type = "Text"
+        result.file_type = file_type
 
     # Route to parser
     try:
@@ -124,18 +133,31 @@ def parse_file(uploaded_file) -> ParseResult:
         elif file_type == "PDF":
             df, warnings = parse_pdf(uploaded_file)
 
+        elif file_type == "Text":
+            df, warnings = parse_text_document(uploaded_file)
+
         else:
-            result.warnings.append(f"❌ No parser available for: {file_type}")
-            return result
+            df, warnings = parse_text_document(uploaded_file)
 
         result.df = df
         result.warnings.extend(warnings)
+
+        (
+            result.parse_confidence,
+            result.expected_rows,
+            result.extracted_rows,
+        ) = _estimate_parse_metrics(df)
+        result.fallback_used = result.parse_confidence < 0.75
 
         # Check result quality
         if df is not None and len(df) > 0:
             result.success = True
             result.warnings.append(
                 f"✅ Parsed successfully: {len(df)} rows × {len(df.columns)} columns"
+            )
+            result.warnings.append(
+                f"📊 Parse confidence: {int(result.parse_confidence * 100)}% "
+                f"({result.extracted_rows}/{max(result.expected_rows, 1)} usable rows)"
             )
         else:
             result.warnings.append("⚠️ Parser returned empty data")
@@ -150,3 +172,26 @@ def parse_file(uploaded_file) -> ParseResult:
 def get_supported_extensions() -> list[str]:
     """Return list of supported file extensions for Streamlit uploader."""
     return [ext.lstrip(".") for ext in SUPPORTED_EXTENSIONS.keys()]
+
+
+def _estimate_parse_metrics(df: pd.DataFrame) -> tuple[float, int, int]:
+    """Estimate extraction quality for downstream validation and UI."""
+    if df is None or len(df) == 0:
+        return 0.0, 0, 0
+
+    if "parse_confidence" in df.attrs:
+        confidence = float(df.attrs.get("parse_confidence", 0.0))
+        expected_rows = int(df.attrs.get("expected_rows", len(df)))
+        extracted_rows = int(df.attrs.get("extracted_rows", len(df)))
+        return confidence, expected_rows, extracted_rows
+
+    expected_rows = int(len(df))
+    extracted_mask = pd.Series(True, index=df.index)
+    if "date" in df.columns:
+        extracted_mask = extracted_mask & df["date"].notna()
+    if "amount" in df.columns:
+        extracted_mask = extracted_mask & pd.to_numeric(df["amount"], errors="coerce").notna()
+
+    extracted_rows = int(extracted_mask.sum())
+    confidence = round(extracted_rows / max(expected_rows, 1), 2)
+    return confidence, expected_rows, extracted_rows

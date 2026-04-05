@@ -8,6 +8,8 @@ import sqlite3
 import pickle
 import os
 
+from src.entity_resolution import normalize_merchant
+
 def get_db_path():
     return os.environ.get('PFAD_TEST_DB', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pfad.db'))
 
@@ -48,13 +50,14 @@ def add_expected_transaction(merchant: str, amount: float, tolerance: float = 0.
     """
     Learns a rule to ignore an anomaly. Defaults to +/- 15% tolerance.
     """
+    merchant_key = normalize_merchant(merchant)
     val_min = amount * (1.0 - tolerance)
     val_max = amount * (1.0 + tolerance)
     
     conn = sqlite3.connect(get_db_path())
     c = conn.cursor()
     c.execute("INSERT INTO expected_transactions (merchant, amount_min, amount_max) VALUES (?, ?, ?)",
-              (merchant, val_min, val_max))
+              (merchant_key, val_min, val_max))
     conn.commit()
     conn.close()
 
@@ -65,7 +68,7 @@ def get_expected_transactions():
     c.execute("SELECT merchant, amount_min, amount_max FROM expected_transactions")
     res = c.fetchall()
     conn.close()
-    return [{"merchant": r[0].lower(), "amount_min": r[1], "amount_max": r[2]} for r in res]
+    return [{"merchant": normalize_merchant(r[0]), "amount_min": r[1], "amount_max": r[2]} for r in res]
 
 def set_budget(category: str, limit: float):
     conn = sqlite3.connect(get_db_path())

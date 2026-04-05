@@ -14,8 +14,8 @@ PURPOSE:
     5. Health      — Financial health score breakdown + recommendations
 
 PIPELINE (Every page shares this):
-    Upload (CSV/Excel/PDF) → parse → map columns → classify categories →
-    preprocess → feature engineer → profile → anomaly detect →
+    Upload (CSV/Excel/PDF) → parse → map columns → preprocess →
+    classify categories → feature engineer → profile → anomaly detect →
     explain → health score → insights → display
 """
 
@@ -35,7 +35,7 @@ import streamlit_authenticator as stauth
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.data_loader import load_from_dataframe, load_csv
-from src.category_classifier import classify_categories, get_classification_summary
+from src.category_classifier import CATEGORIES, classify_categories, get_classification_summary
 from src.parsers import parse_file, ParseResult
 from src.parsers.unified_parser import get_supported_extensions
 from src.preprocessor import clean_data
@@ -110,7 +110,7 @@ h1, h2, h3, h4, .section-header { font-weight: 500; color: #F3F4F6; }
     inset: -2px;
     border-radius: 50%;
     z-index: -1;
-    background: conic-gradient(#7C9CFF 0% var(--score-pct, 0%), #1F2937 var(--score-pct, 0%));
+    background: conic-gradient(#34D399 0% var(--score-pct, 0%), #1F2937 var(--score-pct, 0%));
 }
 .score-caption { font-size: 0.85rem; color: #9CA3AF; margin-top: 5px; }
 
@@ -145,10 +145,10 @@ h1, h2, h3, h4, .section-header { font-weight: 500; color: #F3F4F6; }
 /* What Changed Insights */
 .insight-panel-title { font-weight: 500; font-size: 1rem; color: #E5E7EB; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
 .insight-listItem { margin-bottom: 8px; display: flex; align-items: start; gap: 8px; font-size: 0.85rem; color: #E5E7EB; }
-.insight-bullet { color: #7C9CFF; font-weight: bold; }
+.insight-bullet { color: #34D399; font-weight: bold; }
 
 /* Subtext & Tones */
-.subtle-emphasis { color: #7C9CFF; font-weight: 500; }
+.subtle-emphasis { color: #34D399; font-weight: 500; }
 .alert-text { color: #FBBF24; font-weight: 500; }
 
 div[data-testid="stMetricValue"] { font-size: 1.4rem !important; font-weight: 600; color: #E5E7EB; }
@@ -160,7 +160,7 @@ div[data-testid="stMetricValue"] { font-size: 1.4rem !important; font-weight: 60
 @st.cache_data(show_spinner=False)
 def run_pipeline(df_raw: pd.DataFrame, currency_symbol: str, contamination: float):
     """
-    Full ML pipeline: load → classify → clean → engineer → profile → detect → explain → score.
+    Full ML pipeline: load → clean → classify → engineer → profile → detect → explain → score.
     Cached so rerunning the same data doesn't repeat computation.
     Returns (df, profile, scorer, insights, detector, all_warnings)
     """
@@ -172,12 +172,12 @@ def run_pipeline(df_raw: pd.DataFrame, currency_symbol: str, contamination: floa
     df, load_warnings = load_from_dataframe(df_raw.copy())
     all_warnings.extend(load_warnings)
 
-    # 2. Auto-classify categories (hybrid: rules + ML)
+    # 2. Clean & preprocess into strict schema
+    df = clean_data(df)
+
+    # 3. Auto-classify categories (hybrid: memory + rules + ML)
     df, class_warnings = classify_categories(df)
     all_warnings.extend(class_warnings)
-
-    # 3. Clean & preprocess
-    df = clean_data(df)
 
     # 4. Feature engineering
     df = engineer_features(df)
@@ -317,6 +317,7 @@ def load_data(uploaded_file, currency_symbol, contamination):
                 st.stop()
 
             df_raw = parse_result.df
+            df_raw["parse_confidence"] = parse_result.parse_confidence
     else:
         if not os.path.exists(sample_path):
             st.error("Sample data not found. Please generate it or upload a file.")
@@ -325,6 +326,7 @@ def load_data(uploaded_file, currency_symbol, contamination):
             df_raw = pd.read_csv(sample_path, encoding="utf-8")
         except UnicodeDecodeError:
             df_raw = pd.read_csv(sample_path, encoding="latin-1")
+        df_raw["parse_confidence"] = 1.0
 
     return df_raw, parser_warnings
 
@@ -332,6 +334,8 @@ def load_data(uploaded_file, currency_symbol, contamination):
 # ─── Helper Functions ─────────────────────────────────────────────────────────
 def fmt(amount: float, symbol: str) -> str:
     """Format currency amount."""
+    if amount is None or (isinstance(amount, (float, np.floating)) and np.isnan(amount)):
+        return f"{symbol}0"
     return f"{symbol}{amount:,.0f}"
 
 
@@ -347,6 +351,48 @@ def plot_theme() -> dict:
     )
 
 
+def behavioral_spend_view(df: pd.DataFrame) -> pd.DataFrame:
+    """Return the debit-only, noise-filtered spending view used for behavior metrics."""
+    if df is None or len(df) == 0:
+        return pd.DataFrame(columns=df.columns if df is not None else [])
+
+    filtered = df.copy()
+    if "type" in filtered.columns:
+        filtered = filtered[filtered["type"].astype(str).str.lower() == "debit"]
+    if "is_transfer" in filtered.columns:
+        filtered = filtered[~filtered["is_transfer"].fillna(False).astype(bool)]
+    if "category" in filtered.columns:
+        filtered = filtered[~filtered["category"].astype(str).str.lower().isin(["income_transfer", "personal_transfer"])]
+    return filtered
+
+
+def render_behavior_insight_cards(insights: list[dict], limit: int = 3):
+    """Render structured top insights with problem/cause/impact/action layout."""
+    shown = insights[:limit]
+    if not shown:
+        st.info("No significant behavioral changes detected in the current period.")
+        return
+
+    for insight in shown:
+        priority_color = "#F87171" if insight["priority"] == "critical" else ("#FBBF24" if insight["priority"] == "high" else "#94A3B8")
+        st.markdown(
+            f"""
+<div class="card" style="border-left: 4px solid {priority_color};">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
+        <div style="font-weight:600; font-size:1rem; color:#F8FAFC;">{insight['title']}</div>
+        <div style="font-size:0.75rem; color:{priority_color}; text-transform:uppercase; letter-spacing:1px;">{insight['priority']}</div>
+    </div>
+    <div style="color:#E5E7EB; margin-bottom:8px;"><strong>What changed</strong><br>{insight['what_changed']}</div>
+    <div style="color:#CBD5E1; margin-bottom:8px;"><strong>Why</strong><br>{insight['cause']}</div>
+    <div style="color:#CBD5E1; margin-bottom:8px;"><strong>Impact</strong><br>{insight['impact']}</div>
+    <div style="color:#E5E7EB; margin-bottom:8px;"><strong>Action</strong><br>{insight['action']}</div>
+    <div style="color:#34D399;"><strong>Expected gain</strong><br>{insight['expected_gain']}</div>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 CATEGORY_COLORS = {
     "food": "#F87171",
     "shopping": "#60A5FA",
@@ -356,6 +402,9 @@ CATEGORY_COLORS = {
     "entertainment": "#F472B6",
     "health": "#22C55E",
     "education": "#93C5FD",
+    "investment": "#38BDF8",
+    "income_transfer": "#10B981",
+    "personal_transfer": "#94A3B8",
     "others": "#64748B",
     "uncategorized": "#9CA3AF",
 }
@@ -371,23 +420,21 @@ SEVERITY_COLORS = {
 def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, insights_gen, currency: str):
     st.markdown("## 📊 Overview")
     st.divider()
-
-    # 1. Hero Section & What Changed Integration
+    spend_df = behavioral_spend_view(df)
     health_score = scorer.total_score
     grade = scorer._get_grade()
-    
-    # We bring What Changed directly to the top so there is no empty right-side layout.
-    hero_col_left, hero_col_right = st.columns([1, 1], gap="large")
-    
+
+    hero_col_left, hero_col_right = st.columns([1, 1.2], gap="large")
+
     with hero_col_left:
-        st.markdown(f"<h3 style='margin-bottom: 1.5rem;'>Financial Health Index</h3>", unsafe_allow_html=True)
-        # Re-introduce semantic colors:
+        st.markdown("<h3 style='margin-bottom: 1.5rem;'>Financial Health Index</h3>", unsafe_allow_html=True)
         color = "#34D399" if health_score >= 75 else ("#FBBF24" if health_score >= 50 else "#F87171")
-        
-        st.markdown(f"""
+
+        st.markdown(
+            f"""
         <div style="
-            width: 260px; height: 260px; margin: 0 auto; 
-            border-radius: 50%; 
+            width: 260px; height: 260px; margin: 0 auto;
+            border-radius: 50%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             background: conic-gradient({color} {health_score}%, #1F2937 {health_score}%);
             padding: 4px; box-shadow: inset 0 4px 15px rgba(0,0,0,0.5);
@@ -397,45 +444,31 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
                 <div class="score-caption" style="margin-top: 2px;">Out of 100 ({grade})</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
-        
+            """,
+            unsafe_allow_html=True,
+        )
+
         top_insight = insights_gen.get_top_insights(1)
         if top_insight:
-            top_target = top_insight[0].get("action_plan", {}).get("target", "View insights below")
-            st.markdown(f'<div style="text-align: center; margin-top: 15px;"><span class="subtle-emphasis">{top_insight[0]["title"]}</span><br><span style="color: #E5E7EB; font-size: 0.95rem;">🎯 {top_target}</span></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div style="text-align:center; margin-top:15px;"><span class="subtle-emphasis">{top_insight[0]["title"]}</span><br><span style="color:#E5E7EB; font-size:0.95rem;">{top_insight[0]["action"]}</span></div>',
+                unsafe_allow_html=True,
+            )
         else:
-            st.markdown('<div style="text-align: center; margin-top: 15px; color: #9CA3AF; font-size: 0.95rem;">Spending patterns are stable</div>', unsafe_allow_html=True)
-            
-    with hero_col_right:
-        st.markdown(f"<h3 style='margin-bottom: 1.5rem;'>What Changed This Week</h3>", unsafe_allow_html=True)
-        insights_list = insights_gen.get_insights()
-        if insights_list:
-            st.markdown('<div class="insight-panel" style="margin-bottom: 0;">', unsafe_allow_html=True)
-            for ins in insights_list[:4]:
-                message_br = ins["message"].replace("\\n", "<br>")
-                st.markdown(f'''<div class="insight-listItem">
-<span class="insight-bullet">→</span> 
-<span style="color: #E5E7EB; font-size: 0.95rem; line-height: 1.5;">
-<strong>{ins["title"]}</strong><br>
-<span class="text-muted">{message_br}</span>
-<div class="action-layer" style="margin-top: 10px;">
-<div style="font-size: 0.70rem; text-transform: uppercase; letter-spacing: 1px; color: #34D399; margin-bottom: 6px;">Suggested Adjustment</div>
-<div class="action-target" style="font-size: 0.85rem">🎯 {ins.get("action_plan", {}).get("target", "")}</div>
-<div class="action-strategy" style="font-size: 0.80rem">⏳ {ins.get("action_plan", {}).get("timeframe", "")} — {ins.get("action_plan", {}).get("strategy", "")}</div>
-<div class="action-impact" style="font-size: 0.75rem">⚡ {ins.get("action_plan", {}).get("impact", "")}</div>
-</div>
-</span>
-</div>''', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("No significant behavioral changes detected this period.")
+            st.markdown(
+                '<div style="text-align:center; margin-top:15px; color:#9CA3AF; font-size:0.95rem;">Spending patterns are stable.</div>',
+                unsafe_allow_html=True,
+            )
 
-    # 2. Priority Section (Anomaly Alerts) - Dominant if exist
+    with hero_col_right:
+        st.markdown("<h3 style='margin-bottom: 1.5rem;'>Top Behavioral Insights</h3>", unsafe_allow_html=True)
+        render_behavior_insight_cards(insights_gen.get_insights(), limit=3)
+
     anomalies = df[df["is_anomaly"] == 1]
     if len(anomalies) > 0:
         st.markdown('<p class="section-header" style="margin-top: 3.5rem;">Requires Attention</p>', unsafe_allow_html=True)
-        recent_anomalies = anomalies.sort_values(by=["anomaly_score", "date"], ascending=[False, False]).head(5)
-        
+        recent_anomalies = anomalies.sort_values(by=["anomaly_score", "date"], ascending=[True, False]).head(5)
+
         cards_html = []
         for _, row in recent_anomalies.iterrows():
             sev = row.get("anomaly_severity", "warning").lower()
@@ -448,28 +481,24 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
             else:
                 sev_class = "anomaly-mild"
                 icon = "Notable Change"
-            
+
             struct_exp = row.get("structured_explanation", {})
             if isinstance(struct_exp, dict) and struct_exp:
-                typical = struct_exp.get("typical", "N/A")
+                typical = struct_exp.get("baseline", "N/A")
                 deviation = struct_exp.get("deviation", "N/A")
-                reason = struct_exp.get("reason", "Multi-factor anomaly")
+                reason = struct_exp.get("cause", "Multi-factor anomaly")
             else:
                 typical = "N/A"
                 deviation = "N/A"
                 reason = row.get("explanation", "")
 
-            amount_fmt = fmt(row['amount'], currency)
-            merch = row.get('merchant', 'Unknown')
-            cat = row.get('category', '').title()
-            date_str = pd.to_datetime(row['date']).strftime('%b %d, %Y')
-
-            cards_html.append(f"""<div class="anomaly-card {sev_class}">
+            cards_html.append(
+                f"""<div class="anomaly-card {sev_class}">
     <div class="anomaly-header">
-        <div class="anomaly-title"><span style="color:#9CA3AF; font-size:0.85rem; font-weight: 500;">{icon} &nbsp;·&nbsp;</span> {cat} at {merch}</div>
-        <div class="anomaly-amount">{amount_fmt}</div>
+        <div class="anomaly-title"><span style="color:#9CA3AF; font-size:0.85rem; font-weight:500;">{icon} &nbsp;·&nbsp;</span> {str(row.get('category', '')).title()} at {row.get('merchant', 'Unknown')}</div>
+        <div class="anomaly-amount">{fmt(row['amount'], currency)}</div>
     </div>
-    <div style="color: #9CA3AF; font-size: 0.8rem; margin-top:-8px; margin-bottom: 8px;">{date_str}</div>
+    <div style="color:#9CA3AF; font-size:0.8rem; margin-top:-8px; margin-bottom:8px;">{pd.to_datetime(row['date']).strftime('%b %d, %Y')}</div>
     <div class="anomaly-grid">
         <div class="grid-item">
             <span class="grid-label">Typical</span>
@@ -480,85 +509,84 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
             <span class="grid-val alert-text">{deviation}</span>
         </div>
     </div>
-    <div class="anomaly-reason" style="margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid rgba(255,255,255,0.05);">
+    <div class="anomaly-reason" style="margin-top:1rem; padding-top:0.8rem; border-top:1px solid rgba(255,255,255,0.05);">
         <strong>Reason:</strong> {reason}
     </div>
-</div>""")
+</div>"""
+            )
 
         st.markdown("".join(cards_html), unsafe_allow_html=True)
 
-    # 4 & 5. Trends and Breakdown (Side by Side)
-    col_trends, col_donut = st.columns([1.5, 1])
+    col_trends, col_donut, col_cashflow = st.columns([1.4, 1, 1])
 
     with col_trends:
-        st.markdown('<p class="section-header" style="margin-top: 1rem;">📈 Trends & Smart Forecast</p>', unsafe_allow_html=True)
-        
-        # Exponential Smoothing
-        daily_spend = df.groupby("date")["amount"].sum().reset_index()
-        daily_spend = daily_spend.sort_values("date").set_index("date")
-        
-        # Fill missing days
-        full_idx = pd.date_range(daily_spend.index.min(), daily_spend.index.max())
-        daily_spend = daily_spend.reindex(full_idx, fill_value=0).reset_index()
-        daily_spend.columns = ["date", "amount"]
-        
-        # EWMA
-        daily_spend["ewma"] = daily_spend["amount"].ewm(alpha=0.25, adjust=False).mean()
-        
-        # Forecast naive
-        last_ewma = daily_spend["ewma"].iloc[-1]
-        last_date = daily_spend["date"].max()
-        future_dates = pd.date_range(last_date + pd.Timedelta(days=1), periods=7)
-        forecast_df = pd.DataFrame({"date": future_dates, "forecast": [last_ewma]*7})
+        st.markdown('<p class="section-header" style="margin-top: 1rem;">📈 Spending Trend</p>', unsafe_allow_html=True)
+        if len(spend_df) > 0:
+            daily_spend = spend_df.groupby("date")["amount"].sum().reset_index()
+            daily_spend = daily_spend.sort_values("date").set_index("date")
+            full_idx = pd.date_range(daily_spend.index.min(), daily_spend.index.max())
+            daily_spend = daily_spend.reindex(full_idx, fill_value=0).reset_index()
+            daily_spend.columns = ["date", "amount"]
+            daily_spend["ewma"] = daily_spend["amount"].ewm(alpha=0.25, adjust=False).mean()
 
-        fig_trend = go.Figure()
-        fig_trend.add_trace(go.Bar(
-            x=daily_spend["date"], y=daily_spend["amount"], name="Actual Spend",
-            marker_color="rgba(51, 65, 85, 0.4)",
-            hovertemplate=f"<b>%{{x}}</b><br>{currency}%{{y:,.0f}}<extra></extra>",
-        ))
-        fig_trend.add_trace(go.Scatter(
-            x=daily_spend["date"], y=daily_spend["ewma"], name="Smoothed Trend",
-            line=dict(color="#7C9CFF", width=3), mode="lines",
-            hovertemplate=f"<b>%{{x}}</b><br>Trend: {currency}%{{y:,.0f}}<extra></extra>",
-        ))
-        fig_trend.add_trace(go.Scatter(
-            x=forecast_df["date"], y=forecast_df["forecast"], name="7-Day Forecast",
-            line=dict(color="#FBBF24", width=2, dash="dot"), mode="lines",
-            hovertemplate=f"<b>%{{x}}</b><br>Forecast: {currency}%{{y:,.0f}}<extra></extra>",
-        ))
-        
-        fig_trend.update_layout(height=400, margin=dict(l=0, r=0, t=10, b=0), legend=dict(orientation="h", y=1.1), **{k: v for k, v in plot_theme().items() if k != "margin"})
-        st.plotly_chart(fig_trend, use_container_width=True)
+            fig_trend = go.Figure()
+            fig_trend.add_trace(go.Bar(
+                x=daily_spend["date"],
+                y=daily_spend["amount"],
+                name="Daily Spend",
+                marker_color="rgba(148, 163, 184, 0.45)",
+                hovertemplate=f"<b>%{{x}}</b><br>{currency}%{{y:,.0f}}<extra></extra>",
+            ))
+            fig_trend.add_trace(go.Scatter(
+                x=daily_spend["date"],
+                y=daily_spend["ewma"],
+                name="Smoothed Trend",
+                line=dict(color="#34D399", width=3),
+                mode="lines",
+                hovertemplate=f"<b>%{{x}}</b><br>Trend: {currency}%{{y:,.0f}}<extra></extra>",
+            ))
+            fig_trend.update_layout(height=400, legend=dict(orientation="h", y=1.08), **plot_theme())
+            st.plotly_chart(fig_trend, use_container_width=True)
+        else:
+            st.info("No spending transactions available after transfer filtering.")
 
     with col_donut:
-        st.markdown('<p class="section-header" style="margin-top: 1rem;">💿 Spending by Category</p>', unsafe_allow_html=True)
-        # Only use debit transactions for expense category breakdown
-        debit_df = df[df["type"] == "debit"]
-        cat_totals = debit_df.groupby("category")["amount"].sum().reset_index()
-        total_spend = cat_totals["amount"].sum()
-        
-        colors = [CATEGORY_COLORS.get(c.lower(), "#6366F1") for c in cat_totals["category"]]
-        
-        # Intelligent Center text formatting
-        center_text = f"Total Spend<br><span style='font-size: 24px; color: #F8FAFC; font-weight: bold;'>{currency}{total_spend:,.0f}</span>"
-        
+        st.markdown('<p class="section-header" style="margin-top: 1rem;">💿 Category Mix</p>', unsafe_allow_html=True)
+        debit_df = spend_df[spend_df["type"] == "debit"] if len(spend_df) > 0 else spend_df
+        cat_totals = debit_df.groupby("category")["amount"].sum().reset_index() if len(debit_df) > 0 else pd.DataFrame(columns=["category", "amount"])
+        total_spend = cat_totals["amount"].sum() if len(cat_totals) > 0 else 0
+
         fig_donut = go.Figure(go.Pie(
-            labels=cat_totals["category"].str.title(),
-            values=cat_totals["amount"],
-            hole=0.7,
-            marker=dict(colors=colors),
+            labels=cat_totals["category"].str.title() if len(cat_totals) > 0 else [],
+            values=cat_totals["amount"] if len(cat_totals) > 0 else [],
+            hole=0.68,
+            marker=dict(colors=[CATEGORY_COLORS.get(c.lower(), "#94A3B8") for c in cat_totals["category"]]),
             textinfo="none",
             hovertemplate=f"<b>%{{label}}</b><br>{currency}%{{value:,.0f}}<br>%{{percent}}<extra></extra>",
         ))
         fig_donut.update_layout(
-            annotations=[dict(text=center_text, x=0.5, y=0.5, showarrow=False)],
+            annotations=[dict(text=f"Spend<br><span style='font-size:22px; color:#F8FAFC; font-weight:bold;'>{currency}{total_spend:,.0f}</span>", x=0.5, y=0.5, showarrow=False)],
             showlegend=True,
-            legend=dict(orientation="h", y=-0.1, x=0.5, xanchor="center"),
-            height=400, margin=dict(l=0, r=0, t=10, b=0),
-            **{k: v for k, v in plot_theme().items() if k not in ["xaxis", "yaxis", "margin"]}
+            legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center"),
+            height=400,
+            **{k: v for k, v in plot_theme().items() if k not in ["xaxis", "yaxis", "margin"]},
         )
         st.plotly_chart(fig_donut, use_container_width=True)
+
+    with col_cashflow:
+        st.markdown('<p class="section-header" style="margin-top: 1rem;">💸 Cashflow by Type</p>', unsafe_allow_html=True)
+        flow_df = (
+            df.groupby("type")["amount"].sum().reindex(["credit", "debit"], fill_value=0).reset_index()
+            if len(df) > 0 else pd.DataFrame({"type": ["credit", "debit"], "amount": [0, 0]})
+        )
+        fig_flow = go.Figure(go.Bar(
+            x=flow_df["type"].str.title(),
+            y=flow_df["amount"],
+            marker_color=["#34D399", "#FBBF24"],
+            hovertemplate=f"<b>%{{x}}</b><br>{currency}%{{y:,.0f}}<extra></extra>",
+        ))
+        fig_flow.update_layout(height=400, showlegend=False, **plot_theme())
+        st.plotly_chart(fig_flow, use_container_width=True)
 
 
 # ─── PAGE 2: Anomaly Explorer ─────────────────────────────────────────────────
@@ -583,7 +611,7 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str, detect
             st.markdown(f"**Precision**<br><span style='color:#34D399; font-family:monospace;'>{build_progress_bar(p_pct)}</span> {p_pct:.0%}", unsafe_allow_html=True)
             st.markdown(f"<span style='font-size:0.75rem; color:#9CA3AF;'>{'Low false alerts' if p_pct>0.8 else 'High false alerts'}</span>", unsafe_allow_html=True)
         with col_m2:
-            st.markdown(f"**Recall**<br><span style='color:#7C9CFF; font-family:monospace;'>{build_progress_bar(r_pct)}</span> {r_pct:.0%}", unsafe_allow_html=True)
+            st.markdown(f"**Recall**<br><span style='color:#34D399; font-family:monospace;'>{build_progress_bar(r_pct)}</span> {r_pct:.0%}", unsafe_allow_html=True)
             st.markdown(f"<span style='font-size:0.75rem; color:#9CA3AF;'>{'Good coverage' if r_pct>0.7 else 'Missing anomalies'}</span>", unsafe_allow_html=True)
         with col_m3:
             color_fa = "#F87171" if f_pct > 0.2 else "#FBBF24"
@@ -676,7 +704,7 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str, detect
         st.markdown("**Anomalies by Category**")
         cat_counts = anomalies["category"].value_counts().reset_index()
         cat_counts.columns = ["category", "count"]
-        colors = [CATEGORY_COLORS.get(c, "#6C63FF") for c in cat_counts["category"]]
+        colors = [CATEGORY_COLORS.get(c, "#94A3B8") for c in cat_counts["category"]]
 
         fig_bar = go.Figure(go.Bar(
             x=cat_counts["count"],
@@ -748,11 +776,13 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str, detect
                 st.metric("Amount", fmt(row["amount"], currency))
                 st.metric("Severity", sev.upper())
                 
-                conf = row.get("anomaly_confidence", "Low")
-                if conf == "High":
+                conf = str(row.get("anomaly_confidence", "low")).lower()
+                if conf == "high":
                     st.markdown("**Confidence: High**<br><span style='color:#34D399; font-size:0.75rem'>(Statistical + Model agreement)</span>", unsafe_allow_html=True)
-                elif conf == "Medium":
+                elif conf == "medium":
                     st.markdown("**Confidence: Medium**<br><span style='color:#FBBF24; font-size:0.75rem'>(Model isolation only)</span>", unsafe_allow_html=True)
+                else:
+                    st.markdown("**Confidence: Low**<br><span style='color:#94A3B8; font-size:0.75rem'>(Weak statistical support)</span>", unsafe_allow_html=True)
                     
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("Mark as Expected", key=f"btn_exp_{row.name}"):
@@ -768,6 +798,10 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str, detect
 def page_trends(df: pd.DataFrame, currency: str):
     st.markdown("## 📈 Spending Trends")
     st.divider()
+    df = behavioral_spend_view(df)
+    if len(df) == 0:
+        st.info("No spending data available after transfer filtering.")
+        return
 
     # ── Month-over-Month Delta Table
     st.markdown('<p class="section-header">🗓️ Month-over-Month Delta</p>', unsafe_allow_html=True)
@@ -846,7 +880,7 @@ def page_trends(df: pd.DataFrame, currency: str):
         x=grouped[x_col],
         y=grouped["rolling_avg"],
         name=rolling_label,
-        line=dict(color="#FF6B6B", width=2.5),
+        line=dict(color="#34D399", width=2.5),
         hovertemplate=f"Avg: {currency}%{{y:,.0f}}<extra></extra>",
     ))
     fig_trend.update_layout(
@@ -887,7 +921,7 @@ def page_trends(df: pd.DataFrame, currency: str):
                 y=cat_grouped["amount"],
                 name=cat.title(),
                 mode="lines+markers",
-                line=dict(color=CATEGORY_COLORS.get(cat, "#6C63FF"), width=2),
+                line=dict(color=CATEGORY_COLORS.get(cat, "#94A3B8"), width=2),
                 marker=dict(size=5),
                 hovertemplate=f"<b>{cat.title()}</b>: {currency}%{{y:,.0f}}<extra></extra>",
             ))
@@ -916,8 +950,8 @@ def page_trends(df: pd.DataFrame, currency: str):
         z=heatmap_pivot.values,
         x=col_labels,
         y=heatmap_pivot.index.tolist(),
-        colorscale=[[0, "#1A1D29"], [0.5, "#6C63FF"], [1, "#FF6B6B"]],
-        hovertemplate="<b>%{y} - %{x}</b><br>₹%{z:,.0f}<extra></extra>",
+        colorscale=[[0, "#1A1D29"], [0.5, "#34D399"], [1, "#F87171"]],
+        hovertemplate=f"<b>%{{y}} - %{{x}}</b><br>{currency}%{{z:,.0f}}<extra></extra>",
     ))
     fig_heat.update_layout(title="Spending Intensity Heatmap", **{
         k: v for k, v in plot_theme().items() if k not in ["xaxis", "yaxis"]
@@ -930,6 +964,7 @@ def page_profile(df: pd.DataFrame, profile: UserProfile, currency: str):
     st.markdown("## 👤 Your Spending Profile")
     st.caption("Your financial fingerprint — how you typically spend money.")
     st.divider()
+    spend_df = behavioral_spend_view(df)
 
     # ── Row 1: Category breakdown
     st.markdown('<p class="section-header">Category Spending Breakdown</p>', unsafe_allow_html=True)
@@ -943,18 +978,22 @@ def page_profile(df: pd.DataFrame, profile: UserProfile, currency: str):
             "Transactions": p["transaction_count"],
             "Total Spend": fmt(p["total_spend"], currency),
             "Share": f"{p['share_of_total']}%",
+            "_sort_total": p["total_spend"],
         })
 
-    prof_df = pd.DataFrame(prof_rows).sort_values("Total Spend", ascending=False)
-    st.dataframe(prof_df, use_container_width=True, hide_index=True)
+    prof_df = pd.DataFrame(prof_rows).sort_values("_sort_total", ascending=False) if prof_rows else pd.DataFrame()
+    if "_sort_total" in prof_df.columns:
+        prof_df = prof_df.drop(columns=["_sort_total"])
+    with st.expander("Show category detail table", expanded=False):
+        st.dataframe(prof_df, use_container_width=True, hide_index=True)
 
     # ── Row 2: Category bars + weekday pattern
     col_left, col_right = st.columns(2)
 
     with col_left:
         st.markdown("**Category Totals**")
-        cat_totals = df.groupby("category")["amount"].sum().reset_index().sort_values("amount")
-        colors = [CATEGORY_COLORS.get(c, "#6C63FF") for c in cat_totals["category"]]
+        cat_totals = spend_df.groupby("category")["amount"].sum().reset_index().sort_values("amount")
+        colors = [CATEGORY_COLORS.get(c, "#94A3B8") for c in cat_totals["category"]]
 
         fig_h = go.Figure(go.Bar(
             x=cat_totals["amount"],
@@ -971,7 +1010,7 @@ def page_profile(df: pd.DataFrame, profile: UserProfile, currency: str):
         dow = profile.temporal_profile["day_of_week_avg_spend"]
         days = list(dow.keys())
         amounts = list(dow.values())
-        colors_dow = ["#EC407A" if d in ("Saturday", "Sunday") else "#6C63FF" for d in days]
+        colors_dow = ["#FBBF24" if d in ("Saturday", "Sunday") else "#34D399" for d in days]
 
         fig_dow = go.Figure(go.Bar(
             x=days,
@@ -986,15 +1025,29 @@ def page_profile(df: pd.DataFrame, profile: UserProfile, currency: str):
     st.markdown('<p class="section-header">Top Merchants by Category</p>', unsafe_allow_html=True)
 
     cat_list = sorted(profile.merchant_profile["by_category"].keys())
+    if not cat_list:
+        st.info("No merchant profile available after transfer filtering.")
+        return
     sel_cat = st.selectbox("Select a category", cat_list, format_func=str.title, key="prof_cat")
 
     merch_data = profile.merchant_profile["by_category"][sel_cat]["top_merchants"]
     if merch_data:
         merch_df = pd.DataFrame(merch_data)
-        merch_df.columns = ["Merchant", "Transactions", "Total Spend", "Avg Spend"]
-        merch_df["Total Spend"] = merch_df["Total Spend"].apply(lambda x: fmt(x, currency))
-        merch_df["Avg Spend"] = merch_df["Avg Spend"].apply(lambda x: fmt(x, currency))
-        st.dataframe(merch_df, use_container_width=True, hide_index=True)
+        rename_map = {
+            "name": "Merchant",
+            "count": "Transactions",
+            "total_spend": "Total Spend",
+            "avg_spend": "Avg Spend",
+        }
+        merch_df = merch_df.rename(columns=rename_map)
+        display_cols = [col for col in ["Merchant", "Transactions", "Total Spend", "Avg Spend"] if col in merch_df.columns]
+        merch_df = merch_df[display_cols]
+        if "Total Spend" in merch_df.columns:
+            merch_df["Total Spend"] = merch_df["Total Spend"].apply(lambda x: fmt(x, currency))
+        if "Avg Spend" in merch_df.columns:
+            merch_df["Avg Spend"] = merch_df["Avg Spend"].apply(lambda x: fmt(x, currency))
+        with st.expander("Show merchant detail table", expanded=False):
+            st.dataframe(merch_df, use_container_width=True, hide_index=True)
 
     # ── Velocity stats
     st.markdown('<p class="section-header">Spending Velocity</p>', unsafe_allow_html=True)
@@ -1024,9 +1077,9 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
     with col_gauge:
         # Color based on score
         if total >= 75:
-            gauge_color = "#66BB6A"
+            gauge_color = "#34D399"
         elif total >= 50:
-            gauge_color = "#FFA726"
+            gauge_color = "#FBBF24"
         else:
             gauge_color = "#FF5252"
 
@@ -1047,7 +1100,7 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
                     {"range": [70, 100], "color": "rgba(102,187,106,0.15)"},
                 ],
                 "threshold": {
-                    "line": {"color": "#6C63FF", "width": 3},
+                    "line": {"color": "#34D399", "width": 3},
                     "thickness": 0.75,
                     "value": 70,
                 },
@@ -1073,40 +1126,8 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
 
     st.divider()
 
-    # ── Insights
-    st.markdown('<p class="section-header">💡 Actionable Insights & Recommendations</p>',
-                unsafe_allow_html=True)
-
-    all_insights = insights_gen.get_insights()
-
-    if not all_insights:
-        st.success("🎉 No issues found! Your spending looks healthy. Keep it up!")
-    else:
-        type_icons = {
-            "warning": ("🔴", "insight-warning"),
-            "positive": ("🟢", "insight-positive"),
-            "suggestion": ("💡", "insight-suggestion"),
-            "prediction": ("🔮", "insight-prediction"),
-        }
-
-        for insight in all_insights:
-            icon, css_class = type_icons.get(insight["type"], ("ℹ️", "insight-suggestion"))
-            priority_badge = f"{'🔴' if insight['priority'] == 'high' else '🟡' if insight['priority'] == 'medium' else '🔵'}"
-
-            message_br = insight['message'].replace("\\n", "<br>")
-            st.markdown(f"""
-<div class="{css_class}">
-<div class="insight-title">{icon} {insight['title']} {priority_badge}</div>
-<div class="insight-msg">{message_br}</div>
-<!-- ACTION LAYER -->
-<div class="action-layer">
-<div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #34D399; margin-bottom: 8px;">Suggested Adjustment</div>
-<div class="action-target">🎯 {insight.get("action_plan", {}).get("target", "")}</div>
-<div class="action-strategy">⏳ {insight.get("action_plan", {}).get("timeframe", "")} — {insight.get("action_plan", {}).get("strategy", "")}</div>
-<div class="action-impact">⚡ {insight.get("action_plan", {}).get("impact", "")}</div>
-</div>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown('<p class="section-header">💡 Top 3 Actions</p>', unsafe_allow_html=True)
+    render_behavior_insight_cards(insights_gen.get_insights(), limit=3)
 
 
 # ─── Main App ─────────────────────────────────────────────────────────────────
@@ -1196,29 +1217,27 @@ def main():
     # ── Show Classification Summary ───────────────────────────────────
     if uploaded_file is not None:
         cls_summary = get_classification_summary(df)
-        if cls_summary.get("rule", 0) > 0 or cls_summary.get("model", 0) > 0 or cls_summary.get("user", 0) > 0:
+        if cls_summary.get("rule", 0) > 0 or cls_summary.get("ml", 0) > 0 or cls_summary.get("user", 0) > 0:
             with st.sidebar:
                 with st.expander("🏷️ Category Classification", expanded=False):
                     st.markdown(f"""
                     | Source | Count |
                     |--------|-------|
-                    | 📌 Original | {cls_summary.get('original', 0)} |
-                    | 👤 User Override | {cls_summary.get('user', 0)} |
+                    | 👤 User Memory / Provided | {cls_summary.get('user', 0)} |
                     | ✅ Rule Engine | {cls_summary.get('rule', 0)} |
-                    | 🤖 ML Model | {cls_summary.get('model', 0)} |
-                    | ⬜ Default | {cls_summary.get('default', 0)} |
+                    | 🤖 ML Model | {cls_summary.get('ml', 0)} |
+                    | 🔁 Transfer Rows | {cls_summary.get('transfer_rows', 0)} |
                     """)
                     st.caption(
                         f"Confidence: {cls_summary.get('manual_confidence', 0)} Manual · "
                         f"{cls_summary.get('high_confidence', 0)} High · "
-                        f"{cls_summary.get('medium_confidence', 0)} Medium · "
                         f"{cls_summary.get('low_confidence', 0)} Low"
                     )
                     
     # ── User Override UI (Adaptive System) ────────────────────────────
     if uploaded_file is not None:
         # Get merchants that are uncategorized, 'others', or have low confidence
-        low_conf_mask = (df["category_confidence"] == "Low") | (df["category"].str.lower().isin(["uncategorized", "others"]))
+        low_conf_mask = df["category_confidence"].astype(str).str.lower().eq("low")
         low_conf_df = df[low_conf_mask]
         
         if len(low_conf_df) > 0:
@@ -1233,7 +1252,7 @@ def main():
                         updates = {}
                         for merchant in unique_merchants[:15]: # Cap at 15 for UI layout
                             current_cat = df[df["merchant"] == merchant]["category"].iloc[0].lower()
-                            opts = ["food", "shopping", "transport", "bills", "rent", "entertainment", "health", "education", "transfer", "investment", "others"]
+                            opts = CATEGORIES
                             idx = opts.index(current_cat) if current_cat in opts else len(opts) - 1
                             
                             new_cat = st.selectbox(

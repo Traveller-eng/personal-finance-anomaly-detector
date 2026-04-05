@@ -1,355 +1,318 @@
 """
-insights.py — Actionable Financial Recommendations
+insights.py — Behavior-aware insight and action engine
 =====================================================
-PURPOSE:
-    Transforms raw data analysis into ACTIONABLE ADVICE. This is what
-    makes PFAD a "financial decision engine" rather than just an "analytics tool."
-
-    The system doesn't just show charts — it tells the user:
-    - What to fix
-    - When to fix it (Time constraint)
-    - How to fix it (Strategy hint)
-    - What happens if they do (Impact projection)
+Turns validated transaction data into ranked, action-oriented behavioral
+insights with explicit problem/cause/impact/action framing.
 """
 
+from __future__ import annotations
+
 import pandas as pd
-import numpy as np
-from src.user_profiler import UserProfile
-from src.recurring import detect_recurring
+
 from src.database import get_budgets
-import datetime
-import calendar
+from src.recurring import detect_recurring
+from src.user_profiler import UserProfile
 
 
 class InsightGenerator:
-    """
-    Generates actionable financial insights from transaction data and user profile.
-    """
+    """Generate ranked top insights from behavioral transaction patterns."""
 
-    def __init__(
-        self,
-        df: pd.DataFrame,
-        profile: UserProfile,
-        currency_symbol: str = "₹"
-    ):
-        self.df = df
+    def __init__(self, df: pd.DataFrame, profile: UserProfile, currency_symbol: str = "₹"):
+        self.raw_df = df.copy() if df is not None else pd.DataFrame()
+        self.df = self._filter_noise(self.raw_df)
         self.profile = profile
         self.currency = currency_symbol
         self.insights = []
 
-        # Generate all insights
-        self._check_budget_burn()
-        self._check_recurring()
-        self._check_category_overspending()
-        self._check_weekend_spending()
-        self._check_spending_trend()
-        self._check_category_consistency()
-        self._check_budget_forecast()
-        self._check_merchant_concentration()
-        self._check_positive_habits()
+        self._detect_behavioral_drift()
+        self._detect_recurring_leaks()
+        self._detect_budget_risk()
+        self._detect_category_dominance()
+        self._detect_volatility()
+        self._rank_insights()
 
-        # Sort by priority
-        priority_order = {"high": 0, "medium": 1, "low": 2}
-        self.insights.sort(key=lambda x: priority_order.get(x["priority"], 3))
+    def _filter_noise(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df is None or len(df) == 0:
+            return pd.DataFrame(columns=df.columns if df is not None else [])
 
-    def _check_budget_burn(self):
-        """Generates dynamic burn rate alerts based on SQLite budgets."""
-        budgets = get_budgets()
-        if not budgets:
-            return
+        filtered = df.copy()
+        transfer_mask = (
+            filtered["is_transfer"].fillna(False).astype(bool)
+            if "is_transfer" in filtered.columns
+            else pd.Series(False, index=filtered.index)
+        )
+        filtered = filtered[~transfer_mask]
+        if "category" in filtered.columns:
+            filtered = filtered[~filtered["category"].astype(str).str.lower().isin(["income_transfer", "personal_transfer"])]
+        return filtered.copy()
 
-        current_date_series = self.df['date'].max()
-        if pd.isna(current_date_series): return
-        current_date = pd.to_datetime(current_date_series)
+    def _register_insight(
+        self,
+        *,
+        insight_type: str,
+        display_type: str,
+        priority: str,
+        title: str,
+        category: str,
+        what_changed: str,
+        problem: str,
+        cause: str,
+        impact: str,
+        action: str,
+        expected_gain: str,
+        impact_value: float,
+        deviation_value: float,
+        frequency_value: float,
+        action_plan: dict | None = None,
+    ):
+        score = max(impact_value, 1.0) * max(deviation_value, 1.0) * max(frequency_value, 1.0)
         
-        current_month_df = self.df[(self.df['date'].dt.year == current_date.year) & 
-                                   (self.df['date'].dt.month == current_date.month)]
-        
-        _, days_in_month = calendar.monthrange(current_date.year, current_date.month)
-        days_left = days_in_month - current_date.day
+        # Default action plan if none provided
+        plan = action_plan or {
+            "target": action,
+            "timeframe": "Next 7 days",
+            "strategy": cause,
+            "impact": expected_gain,
+        }
 
-        for cat, limit in budgets.items():
-            cat_df = current_month_df[current_month_df['category'].str.lower() == cat]
-            spent = cat_df['amount'].sum()
-            if limit > 0:
-                burn_pct = (spent / limit) * 100
-                if burn_pct >= 75:
-                    is_critical = burn_pct > 100
-                    priority = "high" if is_critical else "medium"
-                    
-                    self.insights.append({
-                        "type": "warning",
-                        "priority": priority,
-                        "category": cat.title(),
-                        "title": f"Budget Alert: {cat.title()}",
-                        "message": (
-                            f"**{cat.title()} spending reached {burn_pct:.0f}% of budget**\n"
-                            f"Driven by:\n"
-                            f"• {self.currency}{spent:,.0f} total spent vs {self.currency}{limit:,.0f} limit\n"
-                            f"• Only {days_left} days remaining in cycle\n"
-                        ),
-                        "action_plan": {
-                            "target": f"Hard lock {cat.title()} spending",
-                            "timeframe": f"over the next {days_left} days",
-                            "strategy": "by utilizing pre-purchased items or completely avoiding this category",
-                            "impact": "Expected Impact: +5 to +10 score preservation"
-                        }
-                    })
+        self.insights.append({
+            "type": display_type,
+            "insight_type": insight_type,
+            "priority": priority,
+            "category": category,
+            "title": title,
+            "score": round(float(score), 2),
+            "what_changed": what_changed,
+            "problem": problem,
+            "cause": cause,
+            "impact": impact,
+            "action": action,
+            "expected_gain": expected_gain,
+            "message": (
+                f"What changed: {what_changed}\n"
+                f"Why: {cause}\n"
+                f"Impact: {impact}\n"
+                f"Action: {action}"
+            ),
+            "action_plan": plan,
+        })
 
-    def _check_recurring(self):
-        """Identifies recurring subscription overhead."""
-        recurring_data = detect_recurring(self.df)
-        if recurring_data["count"] > 0:
-            self.insights.append({
-                "type": "info",
-                "priority": "high",
-                "category": "overall",
-                "title": "Recurring Overhead Detected",
-                "message": (
-                    f"**{recurring_data['count']} active recurring charges identified**\n"
-                    f"Driven by:\n"
-                    f"• {self.currency}{recurring_data['total_monthly']:,.0f} fixed monthly drain\n"
-                    f"• Automatic silent deductions\n"
-                ),
-                "action_plan": {
-                    "target": "Audit subscriptions and cancel 1 unused service",
-                    "timeframe": "this weekend",
-                    "strategy": "by reviewing payment auto-mandates in your banking app",
-                    "impact": "Expected Impact: +2 to +4 score improvement and immediate cashflow boost"
-                }
-            })
-
-    def _check_category_overspending(self):
-        """Check if any category is significantly over its baseline this week/month."""
+    def _detect_behavioral_drift(self):
+        """Detect category-level spend drift against trailing baseline."""
         if len(self.df) == 0:
             return
 
-        recent_cutoff = self.df["date"].max() - pd.Timedelta(days=7)
+        latest_date = self.df["date"].max()
+        window_days = 30 if self.profile.total_days >= 45 else 7
+        recent_cutoff = latest_date - pd.Timedelta(days=window_days - 1)
         recent = self.df[self.df["date"] >= recent_cutoff]
 
-        for category, prof in self.profile.category_profiles.items():
-            cat_recent = recent[recent["category"] == category]
-            if len(cat_recent) == 0:
+        for category, category_df in self.df.groupby("category"):
+            recent_category = recent[recent["category"] == category]
+            if len(recent_category) == 0:
                 continue
 
-            weekly_spend = cat_recent["amount"].sum()
-            baseline_weekly = prof["mean"] * prof["avg_txns_per_week"]
+            current_spend = recent_category["amount"].sum()
+            baseline_spend = (category_df["amount"].sum() / max(self.profile.total_days, 1)) * window_days
+            if baseline_spend <= 0:
+                continue
 
-            if baseline_weekly > 0 and weekly_spend > baseline_weekly * 1.5:
-                overspend_pct = ((weekly_spend / baseline_weekly) - 1) * 100
-                deviation_amount = weekly_spend - baseline_weekly
+            deviation = current_spend / baseline_spend
+            delta = current_spend - baseline_spend
+            if deviation <= 1.3 or delta <= 0:
+                continue
 
-                self.insights.append({
-                    "type": "warning",
-                    "priority": "high",
-                    "category": category,
-                    "title": f"Overspending on {category.title()}",
-                    "message": (
-                        f"**{category.title()} spending increased by {self.currency}{deviation_amount:,.0f} this week**\n"
-                        f"Driven by:\n"
-                        f"• +{overspend_pct:.0f}% variance against trailing baseline\n"
-                        f"• {len(cat_recent)} active transactions\n"
-                    ),
-                    "action_plan": {
-                        "target": f"Reduce {category} by {self.currency}{deviation_amount:,.0f}",
-                        "timeframe": "over the next 7 days",
-                        "strategy": "by halting impulse buys and adhering to baseline averages",
-                        "impact": "Expected Impact: +3 to +6 score improvement"
-                    }
-                })
-
-    def _check_weekend_spending(self):
-        """Check if weekend spending is significantly higher than weekday."""
-        multiplier = self.profile.temporal_profile.get("weekend_multiplier", 1.0)
-        weekday_avg = self.profile.temporal_profile.get("weekday_avg", 0)
-        weekend_avg = self.profile.temporal_profile.get("weekend_avg", 0)
-
-        if multiplier > 1.8 and weekday_avg > 0:
-            self.insights.append({
-                "type": "suggestion",
-                "priority": "medium",
-                "category": "overall",
-                "title": "Weekend Spending Spike",
-                "message": (
-                    f"**Weekend transaction velocity is {multiplier:.1f}× higher than normal**\n"
-                    f"Driven by:\n"
-                    f"• {self.currency}{weekend_avg:,.0f}/txn average on weekends\n"
-                    f"• {self.currency}{weekday_avg:,.0f}/txn average on weekdays\n"
-                ),
-                "action_plan": {
-                    "target": f"Cap weekend impulse threshold at {self.currency}{weekday_avg * 1.2:,.0f}/txn",
-                    "timeframe": "starting this Friday",
-                    "strategy": "by establishing a separate recreational soft-limit",
-                    "impact": "Expected Impact: +2 to +5 score stabilization"
+            priority = "critical" if deviation >= 1.8 else "high"
+            self._register_insight(
+                insight_type="drift",
+                display_type="warning",
+                priority=priority,
+                title=f"{category.title()} spend drift",
+                category=category,
+                what_changed=f"{category.title()} spend is {deviation:.1f}x above its trailing {window_days}-day baseline.",
+                problem=f"{category.title()} spending accelerated faster than your normal pattern.",
+                cause=f"{len(recent_category)} recent transactions pushed the category from {self.currency}{baseline_spend:,.0f} to {self.currency}{current_spend:,.0f}.",
+                impact=f"At the current pace, you are leaking roughly {self.currency}{delta:,.0f} above baseline in this category.",
+                action=f"Set a short-term cap on {category.title()} and review the last {min(len(recent_category), 5)} transactions.",
+                expected_gain=f"Recovering this drift would protect about {self.currency}{delta:,.0f} of discretionary cashflow.",
+                impact_value=float(delta),
+                deviation_value=float(deviation),
+                frequency_value=float(len(recent_category)),
+                action_plan={
+                    "target": f"Stabilize {category.title()} velocity",
+                    "timeframe": "Over the next 48 hours",
+                    "strategy": f"Implement a total freeze on discretionary {category} purchases.",
+                    "impact": f"Reclaim ~{self.currency}{delta:,.0f} and restore trailing averages"
                 }
-            })
+            )
 
-    def _check_spending_trend(self):
-        """Is overall spending trending up month-over-month?"""
-        monthly = self.profile.temporal_profile.get("monthly_spend", {})
-        if len(monthly) < 2: return
+    def _detect_recurring_leaks(self):
+        """Detect recurring subscription-style outflows."""
+        recurring_data = detect_recurring(self.raw_df)
+        if recurring_data["count"] == 0:
+            return
 
-        months_sorted = sorted(monthly.keys())
-        recent_months = months_sorted[-3:]
+        top_merchants = ", ".join(item["merchant"] for item in recurring_data["details"][:3])
+        priority = "critical" if recurring_data["total_monthly"] >= 3000 else "medium"
+        self._register_insight(
+            insight_type="recurring",
+            display_type="info",
+            priority=priority,
+            title="Recurring charge load",
+            category="overall",
+            what_changed=f"{recurring_data['count']} recurring merchants were detected from your payment history.",
+            problem="Fixed charges are silently reducing monthly flexibility.",
+            cause=f"Repeated billing patterns were found for {top_merchants or 'multiple merchants'}.",
+            impact=f"These commitments are locking in about {self.currency}{recurring_data['total_monthly']:,.0f} per month.",
+            action="Audit active subscriptions and cancel at least one low-value recurring charge.",
+            expected_gain=f"Even one cancellation could immediately free part of the {self.currency}{recurring_data['total_monthly']:,.0f} monthly fixed outflow.",
+            impact_value=float(recurring_data["total_monthly"]),
+            deviation_value=float(max(recurring_data["count"], 1)),
+            frequency_value=float(max(recurring_data["count"], 1)),
+            action_plan={
+                "target": "Reduce recurring overhead",
+                "timeframe": "This weekend",
+                "strategy": "Audit active mandates and cancel at least one unused service.",
+                "impact": f"Instant {self.currency}{recurring_data['total_monthly']//recurring_data['count']:,.0f}+ monthly cashflow boost"
+            }
+        )
 
-        if len(recent_months) >= 2:
-            values = [monthly[m] for m in recent_months]
-            if all(values[i] < values[i + 1] for i in range(len(values) - 1)):
-                increase_pct = ((values[-1] / values[0]) - 1) * 100
-                delta = values[-1] - values[0]
-
-                self.insights.append({
-                    "type": "warning",
-                    "priority": "high",
-                    "category": "overall",
-                    "title": "Rising Spending Trend",
-                    "message": (
-                        f"**Progressive spending creep of {self.currency}{delta:,.0f} detected**\n"
-                        f"Driven by:\n"
-                        f"• +{increase_pct:.0f}% volume over the last {len(recent_months)} consecutive periods\n"
-                        f"• Consistent upward friction across general categories\n"
-                    ),
-                    "action_plan": {
-                        "target": "Audit recent purchases and isolate lifestyle inflation",
-                        "timeframe": "before the next billing cycle",
-                        "strategy": "by freezing discretionary spending for 48 hours to reset habits",
-                        "impact": "Expected Impact: Prevents massive -10 point long-term downgrade"
-                    }
-                })
-
-    def _check_category_consistency(self):
-        """Identify categories with high spending variance."""
-        for category, prof in self.profile.category_profiles.items():
-            if prof["std"] == 0 or prof["mean"] == 0: continue
-            cv = prof["std"] / prof["mean"]
-
-            if cv > 1.0 and prof["transaction_count"] > 5:
-                self.insights.append({
-                    "type": "suggestion",
-                    "priority": "low",
-                    "category": category,
-                    "title": f"Inconsistent {category.title()} Spending",
-                    "message": (
-                        f"**Severe volatility detected in {category.title()}**\n"
-                        f"Driven by:\n"
-                        f"• Massive variance from {self.currency}{prof['min']:,.0f} to {self.currency}{prof['max']:,.0f}\n"
-                        f"• Unpredictable velocity impacting overall budget safety\n"
-                    ),
-                    "action_plan": {
-                        "target": f"Enforce a per-transaction ceiling of {self.currency}{prof['p75']:,.0f}",
-                        "timeframe": "effective immediately",
-                        "strategy": "by standardizing vendors or restricting premium tier purchases",
-                        "impact": "Expected Impact: +1 to +3 score improvement via variance reduction"
-                    }
-                })
-
-    def _check_budget_forecast(self):
-        """Predict if the user will overspend this month based on current trajectory."""
-        if len(self.df) == 0: return
+    def _detect_budget_risk(self):
+        """Project end-of-month risk against budgets or baseline monthly spend."""
+        if len(self.df) == 0:
+            return
 
         latest_date = self.df["date"].max()
         month_start = latest_date.replace(day=1)
         month_data = self.df[self.df["date"] >= month_start]
-
-        if len(month_data) == 0: return
+        if len(month_data) == 0:
+            return
 
         day_of_month = latest_date.day
         days_in_month = pd.Timestamp(latest_date).days_in_month
-
         current_month_spend = month_data["amount"].sum()
-        projected_month_spend = current_month_spend * (days_in_month / max(1, day_of_month))
-        avg_monthly = self.profile.velocity_profile.get("avg_monthly_spend", 0)
+        projected_spend = current_month_spend * (days_in_month / max(day_of_month, 1))
 
-        if avg_monthly > 0 and projected_month_spend > avg_monthly * 1.2:
-            overshoot_pct = ((projected_month_spend / avg_monthly) - 1) * 100
-            days_remaining = days_in_month - day_of_month
-            daily_limit = max(0, (avg_monthly - current_month_spend) / max(1, days_remaining))
+        budgets = get_budgets()
+        explicit_budget = sum(budgets.values()) if budgets else 0.0
+        baseline_monthly = self.profile.velocity_profile.get("avg_monthly_spend", 0.0) or 0.0
+        comparison_target = explicit_budget if explicit_budget > 0 else baseline_monthly
+        if comparison_target <= 0:
+            return
 
-            self.insights.append({
-                "type": "prediction",
-                "priority": "high",
-                "category": "overall",
-                "title": "Budget Overshoot Forecast",
-                "message": (
-                    f"**Projected to exceed monthly baseline by {overshoot_pct:.0f}%**\n"
-                    f"Driven by:\n"
-                    f"• {self.currency}{current_month_spend:,.0f} already spent by day {day_of_month}\n"
-                    f"• Dangerous trajectory toward {self.currency}{projected_month_spend:,.0f}\n"
-                ),
-                "action_plan": {
-                    "target": f"Throttle daily spending to {self.currency}{daily_limit:,.0f}",
-                    "timeframe": f"for the remaining {days_remaining} days",
-                    "strategy": "by switching to an absolute-necessity operational mode",
-                    "impact": "Expected Impact: Prevents a severe -15 point Health Score penalty"
+        deviation = projected_spend / comparison_target
+        overshoot = projected_spend - comparison_target
+        if deviation <= 1.1 or overshoot <= 0:
+            return
+
+        priority = "critical" if deviation >= 1.2 else "high"
+        target_label = "budget" if explicit_budget > 0 else "baseline"
+        self._register_insight(
+            insight_type="budget_risk",
+            display_type="prediction",
+            priority=priority,
+            title="Budget run-rate risk",
+            category="overall",
+            what_changed=f"Projected month-end spend is tracking toward {self.currency}{projected_spend:,.0f}.",
+            problem=f"Your current run-rate is above your normal monthly {target_label}.",
+            cause=f"You have already spent {self.currency}{current_month_spend:,.0f} by day {day_of_month}, which projects to {deviation:.1f}x of the target.",
+            impact=f"If the pace holds, month-end spend could overshoot by about {self.currency}{overshoot:,.0f}.",
+            action="Reduce discretionary spending for the rest of the cycle.",
+            expected_gain=f"Pulling the run-rate back to target would protect roughly {self.currency}{overshoot:,.0f} this month.",
+            impact_value=float(overshoot),
+            deviation_value=float(deviation),
+            frequency_value=float(day_of_month),
+            action_plan={
+                "target": "Emergency Burn-rate Reduction",
+                "timeframe": "Remainder of the billing cycle",
+                "strategy": "Switch to 'Hard Necessity' mode for all discretionary categories.",
+                "impact": f"Prevent a {self.currency}{overshoot:,.0f} net-worth erosion"
+            }
+        )
+
+    def _detect_category_dominance(self):
+        """Detect when one category dominates too much of spending."""
+        if len(self.df) == 0:
+            return
+
+        category_totals = self.df.groupby("category")["amount"].sum().sort_values(ascending=False)
+        total_spend = category_totals.sum()
+        if total_spend <= 0 or len(category_totals) < 2:
+            return
+
+        top_category = category_totals.index[0]
+        top_share = category_totals.iloc[0] / total_spend
+        if top_share <= 0.35:
+            return
+
+        dominant_amount = category_totals.iloc[0]
+        self._register_insight(
+            insight_type="category_dominance",
+            display_type="info",
+            priority="medium",
+            title=f"{top_category.title()} dominates spend",
+            category=top_category,
+            what_changed=f"{top_category.title()} now accounts for {top_share * 100:.0f}% of total tracked spending.",
+            problem="A single category is carrying too much weight in your spending mix.",
+            cause=f"Spending concentration built up to {self.currency}{dominant_amount:,.0f} in {top_category.title()}.",
+            impact="High concentration makes savings more sensitive to price or habit changes in one area.",
+            action=f"Review the largest {top_category.title()} transactions for optimization.",
+            expected_gain=f"Even a 10% optimization in {top_category.title()} would return about {self.currency}{dominant_amount * 0.1:,.0f}.",
+            impact_value=float(dominant_amount),
+            deviation_value=float(top_share * 100),
+            frequency_value=float(self.df[self.df["category"] == top_category]["amount"].count()),
+            action_plan={
+                "target": f"Diversify {top_category.title()} spending",
+                "timeframe": "Next 30 days",
+                "strategy": "Research cheaper substitutes or micro-optimize vendor choice in this sector.",
+                "impact": "Improved structural resilience and personal savings rate"
+            }
+        )
+
+    def _detect_volatility(self):
+        """Detect categories with unstable transaction amounts."""
+        for category, profile in self.profile.category_profiles.items():
+            mean = profile.get("mean", 0.0)
+            std = profile.get("std", 0.0)
+            txn_count = profile.get("transaction_count", 0)
+            if mean <= 0 or std <= 0 or txn_count < 6:
+                continue
+
+            cv = std / mean
+            if cv <= 1.1:
+                continue
+
+            self._register_insight(
+                insight_type="volatility",
+                display_type="suggestion",
+                priority="medium" if cv > 1.4 else "low",
+                title=f"{category.title()} is volatile",
+                category=category,
+                what_changed=f"{category.title()} transaction amounts are swinging more than your normal categories.",
+                problem=f"{category.title()} is hard to forecast because spend size is inconsistent.",
+                cause=f"The category ranges from {self.currency}{profile['min']:,.0f} to {self.currency}{profile['max']:,.0f} with a CV of {cv:.2f}.",
+                impact="This volatility makes month-end planning and budget controls less reliable.",
+                action=f"Create a soft ceiling near {self.currency}{profile['p75']:,.0f} for this category.",
+                expected_gain="Stabilizing this category should improve forecasting accuracy.",
+                impact_value=float(std),
+                deviation_value=float(cv),
+                frequency_value=float(txn_count),
+                action_plan={
+                    "target": f"Normalize {category.title()} spend",
+                    "timeframe": "Ongoing",
+                    "strategy": f"Enforce a per-transaction ceiling of {self.currency}{profile['p75']:,.0f} for this category.",
+                    "impact": "Predictable monthly cash flow models"
                 }
-            })
+            )
 
-    def _check_merchant_concentration(self):
-        """Check if spending is too concentrated in few merchants."""
-        merchant_totals = self.df.groupby("merchant")["amount"].sum().sort_values(ascending=False)
-        total_spend = merchant_totals.sum()
-        if total_spend == 0: return
-
-        top_merchant = merchant_totals.index[0]
-        top_share = merchant_totals.iloc[0] / total_spend
-
-        if top_share > 0.25:
-            self.insights.append({
-                "type": "suggestion",
-                "priority": "low",
-                "category": "overall",
-                "title": "Merchant Concentration",
-                "message": (
-                    f"**Massive capital lock-in with {top_merchant}**\n"
-                    f"Driven by:\n"
-                    f"• {top_share * 100:.0f}% of total lifetime volume routed to a single vendor\n"
-                    f"• High dependency risk on vendor pricing shifts\n"
-                ),
-                "action_plan": {
-                    "target": f"Divert 10% of {top_merchant} volume to competitors",
-                    "timeframe": "over the next 30 days",
-                    "strategy": "by price-comparing your core recurring basket against alternate providers",
-                    "impact": "Expected Impact: Long-term savings through volume diversification"
-                }
-            })
-
-    def _check_positive_habits(self):
-        """Highlight positive spending behaviors."""
-        min_cv = float("inf")
-        most_consistent_cat = None
-
-        for category, prof in self.profile.category_profiles.items():
-            if prof["mean"] > 0 and prof["transaction_count"] > 5:
-                cv = prof["std"] / prof["mean"]
-                if cv < min_cv:
-                    min_cv = cv
-                    most_consistent_cat = category
-
-        if most_consistent_cat and min_cv < 0.5:
-            self.insights.append({
-                "type": "positive",
-                "priority": "low",
-                "category": most_consistent_cat,
-                "title": f"Great Discipline in {most_consistent_cat.title()}",
-                "message": (
-                    f"**Exceptional stability detected in {most_consistent_cat.title()}**\n"
-                    f"Driven by:\n"
-                    f"• {self.currency}{self.profile.category_profiles[most_consistent_cat]['mean']:,.0f} average execution\n"
-                    f"• Extremely low volatility (CV < 0.5)\n"
-                ),
-                "action_plan": {
-                    "target": "Maintain current operational parameters",
-                    "timeframe": "ongoing",
-                    "strategy": "by continuing your existing psychological anchoring for this category",
-                    "impact": "Expected Impact: Continues to anchor your Health Score near 90+"
-                }
-            })
+    def _rank_insights(self):
+        """Sort by score and keep only the top 3 highest-impact insights."""
+        priority_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        self.insights.sort(key=lambda item: (priority_rank.get(item["priority"], 99), -item["score"]))
+        # Already ranked by score/priority, we'll slice in get_top_insights
 
     def get_insights(self) -> list[dict]:
         return self.insights
 
-    def get_insights_by_type(self, insight_type: str) -> list[dict]:
-        return [i for i in self.insights if i["type"] == insight_type]
-
-    def get_top_insights(self, n: int = 5) -> list[dict]:
+    def get_top_insights(self, n: int = 3) -> list[dict]:
         return self.insights[:n]

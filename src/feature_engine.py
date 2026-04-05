@@ -1,196 +1,167 @@
 """
-feature_engine.py — Feature Engineering Pipeline
-==================================================
-PURPOSE:
-    Raw transaction data (date, amount, category, merchant) isn't enough for
-    anomaly detection. We need to engineer features that capture BEHAVIORAL CONTEXT:
-    - Is this amount unusual FOR THIS CATEGORY?
-    - Is the user spending more than THEIR RECENT AVERAGE?
-    - Is this transaction happening at an UNUSUAL TIME?
-
-    These engineered features transform the problem from "find big numbers" to
-    "find behavioral deviations" — which is what makes this system intelligent.
-
-WHY THESE FEATURES:
-    The Isolation Forest works by randomly splitting features to isolate points.
-    If all we give it is raw amount, it only finds large transactions.
-    But with z-scores, rolling averages, and category ratios, it can find
-    MULTI-DIMENSIONAL anomalies: a normal-sized transaction at an unusual time
-    in an unusual category is still an anomaly.
+feature_engine.py — Behavioral feature engineering
+=================================================
+Builds the context features that turn raw transactions into a behavior-aware
+signal set for anomaly detection and insight generation.
 """
 
-import pandas as pd
+from __future__ import annotations
+
 import numpy as np
+import pandas as pd
 
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Master feature engineering pipeline.
+    """Master feature engineering pipeline."""
+    if df is None:
+        return pd.DataFrame(columns=get_feature_columns())
 
-    Takes cleaned data and adds ML-ready features.
-    Returns DataFrame with all original columns plus engineered features.
+    if len(df) == 0:
+        empty = df.copy()
+        for column in get_feature_columns():
+            if column not in empty.columns:
+                empty[column] = []
+        return empty
 
-
-    """
-    df = df.copy()
-
-    # ─── 1. Category-level Z-Score ──────────────────────────────────────
-    # "How many standard deviations is this amount from the category mean?"
-    # Z-score > 2: unusual, > 3: very unusual
-    df = _add_category_zscore(df)
-
-    # ─── 2. Rolling Averages ────────────────────────────────────────────
-    # "What's the user's spend trend over the last 7 and 30 days?"
-    df = _add_rolling_averages(df)
-
-    # ─── 3. Category Daily Ratio ────────────────────────────────────────
-    # "How does this transaction compare to average daily spend in this category?"
-    df = _add_category_ratio(df)
-
-    # ─── 4. Transaction Frequency ───────────────────────────────────────
-    # "How many transactions in the last 7 days?"
-    df = _add_frequency_features(df)
-
-    # ─── 5. Days Since Last Transaction ─────────────────────────────────
-    # "How long since the user's last transaction? Long gaps may indicate unusual behavior"
+    df = df.copy().sort_values("date").reset_index(drop=True)
+    if "merchant_normalized" not in df.columns:
+        df["merchant_normalized"] = df["merchant"].astype(str).str.lower().str.strip()
+    if "entity_type" not in df.columns:
+        df["entity_type"] = "unknown"
+    df = _add_daily_context(df)
+    df = _add_category_history(df)
+    df = _add_merchant_history(df)
+    df = _add_flow_history(df)
     df = _add_days_since_last(df)
+    df = _add_encodings(df)
 
-    # ─── 6. Amount Log Transform ────────────────────────────────────────
-    # "Log-transform reduces the effect of extreme values on the model"
     df["amount_log"] = np.log1p(df["amount"])
+    df["weekend_flag"] = df.get("is_weekend", 0).astype(float)
+    df["category_daily_ratio"] = df["amount"] / df["category_mean_prior"].replace(0, np.nan)
+    df["category_daily_ratio"] = df["category_daily_ratio"].replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-    # ─── 7. Category Encoding ──────────────────────────────────────────
-    # "Convert categorical data to numeric for the ML model"
-    df = _add_category_encoding(df)
-
-    # Fill any NaN from rolling calculations with 0
-    feature_cols = get_feature_columns()
-    df[feature_cols] = df[feature_cols].fillna(0)
-
+    numeric_columns = get_feature_columns()
+    df[numeric_columns] = df[numeric_columns].replace([np.inf, -np.inf], np.nan).fillna(0.0)
     return df
 
 
-def _add_category_zscore(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculate z-score of amount within each category.
-
-
-    """
-    category_stats = df.groupby("category")["amount"].agg(["mean", "std"]).reset_index()
-    category_stats.columns = ["category", "cat_mean", "cat_std"]
-    category_stats["cat_std"] = category_stats["cat_std"].replace(0, 1)  # Avoid division by zero
-
-    df = df.merge(category_stats, on="category", how="left")
-    df["amount_zscore"] = (df["amount"] - df["cat_mean"]) / df["cat_std"]
-    df = df.drop(columns=["cat_mean", "cat_std"])
-
-    return df
-
-
-def _add_rolling_averages(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add 7-day and 30-day rolling average spending.
-
-
-    """
-    # Compute daily total spend, then rolling average
-    daily_spend = df.groupby("date")["amount"].sum().reset_index()
-    daily_spend.columns = ["date", "daily_total"]
-    daily_spend = daily_spend.sort_values("date")
-
-    daily_spend["rolling_7d_avg"] = (
-        daily_spend["daily_total"].rolling(window=7, min_periods=1).mean()
-    )
-    daily_spend["rolling_30d_avg"] = (
-        daily_spend["daily_total"].rolling(window=30, min_periods=1).mean()
+def _add_daily_context(df: pd.DataFrame) -> pd.DataFrame:
+    """Add trailing daily-spend and daily-activity context."""
+    daily = (
+        df.groupby("date")
+        .agg(daily_total=("amount", "sum"), daily_txn_count=("amount", "size"))
+        .sort_index()
     )
 
-    df = df.merge(daily_spend[["date", "rolling_7d_avg", "rolling_30d_avg"]], on="date", how="left")
+    full_index = pd.date_range(daily.index.min(), daily.index.max(), freq="D")
+    daily = daily.reindex(full_index, fill_value=0.0)
+    daily.index.name = "date"
+    daily = daily.reset_index()
 
-    return df
+    daily["rolling_7d_avg"] = daily["daily_total"].rolling(window=7, min_periods=1).mean()
+    daily["rolling_mean_30d"] = daily["daily_total"].rolling(window=30, min_periods=1).mean()
+    daily["rolling_30d_avg"] = daily["rolling_mean_30d"]
+    daily["rolling_std_30d"] = daily["daily_total"].rolling(window=30, min_periods=2).std().fillna(0.0)
+    daily["txn_frequency_7d"] = daily["daily_txn_count"].rolling(window=7, min_periods=1).sum()
+    daily["transaction_frequency"] = daily["daily_txn_count"].rolling(window=30, min_periods=1).sum()
+    daily["velocity_tx_per_day"] = daily["transaction_frequency"] / 30.0
 
-
-def _add_category_ratio(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Ratio of transaction amount to average daily spend in that category.
-
-
-    """
-    # Average daily spend per category
-    date_range_days = (df["date"].max() - df["date"].min()).days + 1
-    category_daily_avg = (
-        df.groupby("category")["amount"].sum() / date_range_days
-    ).reset_index()
-    category_daily_avg.columns = ["category", "cat_daily_avg"]
-    category_daily_avg["cat_daily_avg"] = category_daily_avg["cat_daily_avg"].replace(0, 1)
-
-    df = df.merge(category_daily_avg, on="category", how="left")
-    df["category_daily_ratio"] = df["amount"] / df["cat_daily_avg"]
-    df = df.drop(columns=["cat_daily_avg"])
-
-    return df
-
-
-def _add_frequency_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Count transactions in the last 7 days for each date.
-
-
-    """
-    daily_counts = df.groupby("date").size().reset_index(name="daily_txn_count")
-    daily_counts = daily_counts.sort_values("date")
-    daily_counts["txn_frequency_7d"] = (
-        daily_counts["daily_txn_count"].rolling(window=7, min_periods=1).sum()
+    return df.merge(
+        daily[
+            [
+                "date",
+                "rolling_7d_avg",
+                "rolling_mean_30d",
+                "rolling_30d_avg",
+                "rolling_std_30d",
+                "txn_frequency_7d",
+                "transaction_frequency",
+                "velocity_tx_per_day",
+            ]
+        ],
+        on="date",
+        how="left",
     )
 
-    df = df.merge(daily_counts[["date", "txn_frequency_7d"]], on="date", how="left")
 
+def _add_category_history(df: pd.DataFrame) -> pd.DataFrame:
+    """Add category share and prior category spend baselines."""
+
+    def enrich_group(group: pd.DataFrame) -> pd.DataFrame:
+        group = group.sort_values("date").copy()
+        prior_amounts = group["amount"].shift(1)
+        group["category_mean_prior"] = prior_amounts.expanding().mean()
+        group["category_std_prior"] = prior_amounts.expanding().std().fillna(0.0)
+        return group
+
+    df = df.groupby("category", group_keys=False).apply(enrich_group)
+    df = df.sort_values("date").reset_index(drop=True)
+
+    df["amount_zscore"] = (
+        (df["amount"] - df["category_mean_prior"]) / df["category_std_prior"].replace(0, np.nan)
+    )
+    df["amount_zscore"] = df["amount_zscore"].replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    df["cumulative_amount"] = df["amount"].cumsum()
+    df["category_cumulative_amount"] = df.groupby("category")["amount"].cumsum()
+    df["category_share"] = df["category_cumulative_amount"] / df["cumulative_amount"].replace(0, np.nan)
+    df["category_share"] = df["category_share"].replace([np.inf, -np.inf], np.nan).fillna(0.0)
+    return df
+
+
+def _add_merchant_history(df: pd.DataFrame) -> pd.DataFrame:
+    """Add merchant familiarity features."""
+    df["merchant_frequency"] = df.groupby("merchant_normalized").cumcount() + 1
+    df["new_merchant_flag"] = (df["merchant_frequency"] == 1).astype(float)
+    return df
+
+
+def _add_flow_history(df: pd.DataFrame) -> pd.DataFrame:
+    """Add cashflow- and transfer-aware features."""
+    df["credit_flag"] = (df["type"] == "credit").astype(float)
+    df["transfer_flag"] = df.get("is_transfer", False).astype(float)
     return df
 
 
 def _add_days_since_last(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculate days since the previous transaction.
-
-
-    """
-    unique_dates = df["date"].drop_duplicates().sort_values()
-    date_df = pd.DataFrame({"date": unique_dates})
-    date_df["days_since_last_txn"] = date_df["date"].diff().dt.days.fillna(0)
-
-    df = df.merge(date_df, on="date", how="left")
-
+    """Add time since the previous transaction in days."""
+    df["days_since_last_txn"] = (
+        df["date"].diff().dt.total_seconds().div(86400).clip(lower=0).fillna(0.0)
+    )
     return df
 
 
-def _add_category_encoding(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Label-encode categories for the ML model.
+def _add_encodings(df: pd.DataFrame) -> pd.DataFrame:
+    """Encode categorical fields for the signal engine."""
+    categories_sorted = sorted(df["category"].astype(str).unique())
+    entity_types_sorted = sorted(df["entity_type"].astype(str).unique())
 
+    cat_to_int = {category: index for index, category in enumerate(categories_sorted)}
+    entity_to_int = {entity: index for index, entity in enumerate(entity_types_sorted)}
 
-    """
-    categories_sorted = sorted(df["category"].unique())
-    cat_to_int = {cat: i for i, cat in enumerate(categories_sorted)}
-    df["category_encoded"] = df["category"].map(cat_to_int)
-
+    df["category_encoded"] = df["category"].map(cat_to_int).astype(float)
+    df["entity_type_encoded"] = df["entity_type"].map(entity_to_int).astype(float)
     return df
 
 
 def get_feature_columns() -> list[str]:
-    """
-    Return the list of feature columns used by the anomaly detector.
-    Centralizing this ensures consistency between training and prediction.
-    """
+    """Return the numeric features used by the signal engine."""
     return [
         "amount",
         "amount_log",
         "amount_zscore",
         "category_encoded",
+        "entity_type_encoded",
         "day_of_week",
-        "is_weekend",
-        "rolling_7d_avg",
-        "rolling_30d_avg",
-        "category_daily_ratio",
-        "txn_frequency_7d",
+        "weekend_flag",
+        "rolling_mean_30d",
+        "rolling_std_30d",
+        "transaction_frequency",
+        "merchant_frequency",
+        "category_share",
+        "velocity_tx_per_day",
+        "new_merchant_flag",
         "days_since_last_txn",
+        "credit_flag",
+        "transfer_flag",
     ]
