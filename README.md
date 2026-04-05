@@ -224,6 +224,16 @@ PFAD includes internal evaluation surfaces such as:
 
 For real datasets without labels, heuristic confidence and behavioral consistency checks are used instead.
 
+## Evaluation Methodology
+
+Metrics are evaluated on controlled synthetic datasets using:
+
+- approximately 5% injected anomalies
+- category-balanced sampling
+- controlled variance distributions
+
+This allows controlled evaluation in the absence of real-world anomaly labels.
+
 ---
 
 ## Example End-to-End Flow
@@ -256,6 +266,21 @@ Deviation: Significant increase vs baseline
 Cause: High recent category velocity
 Action: Reduce discretionary food spending this week
 ```
+
+## Example Insight
+
+### Input
+
+```text
+4800 INR spent on food in 1 day
+```
+
+### Output
+
+- Insight: Food spending increased 4.2x versus baseline
+- Cause: High transaction frequency and weekend effect
+- Impact: 1600 INR projected weekly overspend
+- Action: Reduce discretionary food spend by 300 INR per day for the next 5 days
 
 ---
 
@@ -360,6 +385,15 @@ streamlit run app.py
 
 ---
 
+## Complexity
+
+- Parsing: `O(n)`
+- Feature computation: `O(n)`
+- Isolation Forest: approximately `O(n log n)`
+- End-to-end pipeline: near-linear for typical workloads
+
+---
+
 ## Project Structure
 
 ```text
@@ -394,6 +428,13 @@ config_example.yaml
 - PDF parsing depends on text-based extraction; OCR is not included
 - Entity resolution remains heuristic for ambiguous counterparties
 - Impact projections are advisory heuristics, not forecasts
+
+## Failure Modes
+
+- Person names that resemble business entities may be misclassified
+- Sparse transaction history reduces statistical reliability
+- Sudden lifestyle changes may temporarily trigger false positives
+- Merchant normalization may fail on heavily obfuscated text inputs
 
 ---
 
