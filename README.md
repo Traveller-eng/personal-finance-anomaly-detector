@@ -373,6 +373,62 @@ Important:
 streamlit run app.py
 ```
 
+## Docker Usage
+
+PFAD can be run in a container for consistent local deployment.
+
+### Option 1: Docker Compose (recommended)
+
+Build and run:
+
+```bash
+docker compose up --build
+```
+
+Default access URL:
+
+```text
+http://localhost:8502
+```
+
+The compose setup maps:
+
+- container `8501` -> host `8502`
+- `./data` -> `/app/data` for persistent local app data
+- `./config.yaml` -> `/app/config.yaml` for local authentication config
+
+Stop services:
+
+```bash
+docker compose down
+```
+
+### Option 2: Docker CLI
+
+Build image:
+
+```bash
+docker build -t pfad:latest .
+```
+
+Run container:
+
+```bash
+docker run --rm -p 8502:8501 -v ${PWD}/data:/app/data -v ${PWD}/config.yaml:/app/config.yaml pfad:latest
+```
+
+On Windows PowerShell, if `${PWD}` path expansion causes issues, use absolute paths:
+
+```bash
+docker run --rm -p 8502:8501 -v C:\path\to\repo\data:/app/data -v C:\path\to\repo\config.yaml:/app/config.yaml pfad:latest
+```
+
+### Notes
+
+- The container starts Streamlit with `--server.address=0.0.0.0 --server.port=8501`
+- `config.yaml` must exist on host before starting container
+- `PFAD_TEST_DB` is set in compose to store SQLite data under `/app/data/pfad.db`
+
 ---
 
 ## Technology Stack
