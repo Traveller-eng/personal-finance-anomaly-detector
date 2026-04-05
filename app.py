@@ -1168,27 +1168,15 @@ def page_health(scorer: HealthScorer, insights_gen: InsightGenerator, currency: 
 def main():
     config, config_source = _load_auth_config()
     if config is None:
-        st.error("🔒 No authentication config found.")
-        st.markdown("""
-        **Security Engine Active:** PFAD requires local authentication.
+        if "guest_mode" not in st.session_state:
+            st.session_state["guest_mode"] = False
 
-        Provide credentials through one of these options:
-
-        1. Local run: create `config.yaml` (see `config_example.yaml`)
-        2. Streamlit Cloud: add this structure in **App -> Settings -> Secrets**
-
-        ```toml
-        [cookie]
-        expiry_days = 1
-        key = "your_cookie_key"
-        name = "pfad_auth"
-
-        [credentials.usernames.admin]
-        email = "admin@example.com"
-        name = "Admin User"
-        password = "$2b$12$your_bcrypt_hash_here"
-        ```
-        """)
+        st.warning("Authentication config not found. Login is unavailable for this run.")
+        st.markdown("### Quick Evaluation Mode")
+        st.caption("Continue as Guest for the demo. Add `config.yaml` or Streamlit secrets later to restore login.")
+        if st.button("Continue as Guest"):
+            st.session_state["guest_mode"] = True
+            st.rerun()
         st.stop()
 
     authenticator = stauth.Authenticate(
