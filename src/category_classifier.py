@@ -122,12 +122,12 @@ def classify_by_rules(
     txn_type: str = "debit",
     entity_type: str | None = None,
     current_category: str | None = None,
-) -> tuple[str, str, str]:
+) -> tuple[str, bool, str, str]:
     """
     Rule-based classification for a single transaction.
 
     Returns:
-        (category, category_confidence, source)
+        (category, is_transfer, category_confidence, source)
     """
     merchant_key = normalize_merchant(merchant)
     entity = (entity_type or detect_entity_type(merchant_key)).lower()
@@ -135,17 +135,52 @@ def classify_by_rules(
 
     if entity == "person":
         if txn_type == "credit":
-            return "income_transfer", "high", "rule"
-        return "personal_transfer", "high", "rule"
+            return "income_transfer", True, "high", "rule"
+        return "personal_transfer", True, "high", "rule"
 
     for category, keywords in CATEGORY_RULES.items():
         if any(keyword in merchant_key for keyword in keywords):
-            return category, "high", "rule"
+            return category, False, "high", "rule"
 
     if current_category not in CATEGORY_PLACEHOLDERS:
-        return current_category, "manual", "user"
+        return current_category, False, "manual", "user"
 
-    return "others", "low", "rule"
+    return "others", False, "low", "rule"
+
+
+def classify_category(row: pd.Series, user_mapping: dict | None = None) -> tuple[str, bool]:
+    """Classify a transaction into category and transfer status only."""
+    user_mapping = user_mapping or {}
+    merchant = row.get("merchant", "")
+    merchant_key = row.get("merchant_normalized") or normalize_merchant(merchant)
+    txn_type = str(row.get("type", "debit")).lower()
+    entity_type = str(row.get("entity_type", detect_entity_type(merchant))).lower()
+
+    if merchant_key in user_mapping:
+        return normalize_category_value(user_mapping[merchant_key]), False
+
+    category, is_transfer, _, _ = classify_by_rules(
+        merchant=merchant,
+        txn_type=txn_type,
+        entity_type=entity_type,
+        current_category=row.get("category", "uncategorized"),
+    )
+    return category, is_transfer
+
+
+def generate_transaction_text(row: pd.Series) -> str:
+    """Generate a user-facing transaction summary with transfer awareness."""
+    amount = float(row.get("amount", 0) or 0)
+    merchant = row.get("merchant") or "Unknown"
+    category = normalize_category_value(row.get("category", "others"))
+    txn_type = str(row.get("type", "debit")).lower()
+    is_transfer = bool(row.get("is_transfer", False))
+
+    if txn_type == "credit" and is_transfer:
+        return f"Rs.{amount:,.0f} received from {merchant}"
+    if txn_type != "credit" and is_transfer:
+        return f"Rs.{amount:,.0f} sent to {merchant}"
+    return f"Rs.{amount:,.0f} spent on {category}"
 
 
 def classify_categories(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
@@ -165,17 +200,14 @@ def classify_categories(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
         return df, warnings
 
     user_mapping = load_mapping()
-    original_category = df["category"].apply(normalize_category_value)
-    memory_override_rows = 0
-
-    def apply_rule_pipeline(row: pd.Series) -> tuple[str, str, str]:
+    def apply_rule_pipeline(row: pd.Series) -> tuple[str, bool, str, str]:
         merchant_key = row.get("merchant_normalized") or normalize_merchant(row.get("merchant", ""))
         txn_type = str(row.get("type", "debit")).lower()
         entity_type = str(row.get("entity_type", "unknown")).lower()
         current_category = normalize_category_value(row.get("category", "uncategorized"))
 
         if merchant_key in user_mapping:
-            return user_mapping[merchant_key], "manual", "user"
+            return user_mapping[merchant_key], False, "manual", "user"
 
         return classify_by_rules(
             merchant=row.get("merchant", ""),
@@ -186,28 +218,15 @@ def classify_categories(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 
     results = df.apply(apply_rule_pipeline, axis=1)
     df["category"] = results.apply(lambda item: item[0])
-    df["category_confidence"] = results.apply(lambda item: item[1])
-    df["source"] = results.apply(lambda item: item[2])
+    df["is_transfer"] = results.apply(lambda item: bool(item[1]))
+    df["category_confidence"] = results.apply(lambda item: item[2])
+    df["source"] = results.apply(lambda item: item[3])
     df["category_source"] = df["source"]
 
     memory_override_rows = int(df["merchant_normalized"].isin(user_mapping.keys()).sum())
     transfer_rows = int(df["category"].isin(TRANSFER_CATEGORIES).sum())
     keyword_rows = int(((df["source"] == "rule") & (df["category_confidence"] == "high")).sum())
     fallback_rows = int(((df["source"] == "rule") & (df["category"] == "others")).sum())
-
-    ml_mask = (
-        (df["category"] == "others")
-        & original_category.isin(CATEGORY_PLACEHOLDERS)
-        & (df["source"] == "rule")
-        & (~df["is_transfer"])
-    )
-    ml_candidates = int(ml_mask.sum())
-
-    if ml_candidates > 0:
-        ml_classified = _ml_classify(df, ml_mask)
-        warnings.append(f"ML fallback classified {ml_classified}/{ml_candidates} previously-unknown merchants.")
-    else:
-        warnings.append("ML fallback skipped because no unknown merchants remained after rules.")
 
     warnings.append(f"Memory overrides applied: {memory_override_rows}")
     warnings.append(f"Transfers isolated: {transfer_rows}")
