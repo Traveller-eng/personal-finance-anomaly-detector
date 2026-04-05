@@ -25,6 +25,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
+import hashlib
 import os
 import sys
 import yaml
@@ -443,6 +444,32 @@ CATEGORY_COLORS = {
     "uncategorized": "#9CA3AF",
 }
 
+FALLBACK_CATEGORY_COLORS = [
+    "#22C55E",
+    "#F59E0B",
+    "#8B5CF6",
+    "#EC4899",
+    "#06B6D4",
+    "#F97316",
+    "#84CC16",
+    "#EAB308",
+    "#3B82F6",
+    "#EF4444",
+    "#14B8A6",
+    "#A855F7",
+]
+
+
+def category_color(category: str) -> str:
+    """Return a stable color for both known and unseen categories."""
+    normalized = str(category or "").strip().lower()
+    if normalized in CATEGORY_COLORS:
+        return CATEGORY_COLORS[normalized]
+
+    digest = hashlib.md5(normalized.encode("utf-8")).hexdigest()
+    color_index = int(digest[:8], 16) % len(FALLBACK_CATEGORY_COLORS)
+    return FALLBACK_CATEGORY_COLORS[color_index]
+
 SEVERITY_COLORS = {
     "critical": "#F87171",
     "warning": "#FBBF24",
@@ -594,7 +621,7 @@ def page_overview(df: pd.DataFrame, profile: UserProfile, scorer: HealthScorer, 
             labels=cat_totals["category"].str.title() if len(cat_totals) > 0 else [],
             values=cat_totals["amount"] if len(cat_totals) > 0 else [],
             hole=0.68,
-            marker=dict(colors=[CATEGORY_COLORS.get(c.lower(), "#94A3B8") for c in cat_totals["category"]]),
+            marker=dict(colors=[category_color(c) for c in cat_totals["category"]]),
             textinfo="none",
             hovertemplate=f"<b>%{{label}}</b><br>{currency}%{{value:,.0f}}<br>%{{percent}}<extra></extra>",
         ))
@@ -738,7 +765,7 @@ def page_anomalies(df: pd.DataFrame, profile: UserProfile, currency: str, detect
         st.markdown("**Anomalies by Category**")
         cat_counts = anomalies["category"].value_counts().reset_index()
         cat_counts.columns = ["category", "count"]
-        colors = [CATEGORY_COLORS.get(c, "#94A3B8") for c in cat_counts["category"]]
+        colors = [category_color(c) for c in cat_counts["category"]]
 
         fig_bar = go.Figure(go.Bar(
             x=cat_counts["count"],
@@ -955,7 +982,7 @@ def page_trends(df: pd.DataFrame, currency: str):
                 y=cat_grouped["amount"],
                 name=cat.title(),
                 mode="lines+markers",
-                line=dict(color=CATEGORY_COLORS.get(cat, "#94A3B8"), width=2),
+                line=dict(color=category_color(cat), width=2),
                 marker=dict(size=5),
                 hovertemplate=f"<b>{cat.title()}</b>: {currency}%{{y:,.0f}}<extra></extra>",
             ))
@@ -1027,7 +1054,7 @@ def page_profile(df: pd.DataFrame, profile: UserProfile, currency: str):
     with col_left:
         st.markdown("**Category Totals**")
         cat_totals = spend_df.groupby("category")["amount"].sum().reset_index().sort_values("amount")
-        colors = [CATEGORY_COLORS.get(c, "#94A3B8") for c in cat_totals["category"]]
+        colors = [category_color(c) for c in cat_totals["category"]]
 
         fig_h = go.Figure(go.Bar(
             x=cat_totals["amount"],
